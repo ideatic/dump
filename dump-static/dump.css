@@ -1,0 +1,196 @@
+/* Dump de valores */
+.dump-main{
+    background: url("overlay.gif") #222;
+    border: 8px solid #000;
+    color: #FFF;
+    font-family: "Consolas","Courier New","Lucida Console", monospace;
+    font-size: 12px;
+    padding:5px;
+    margin:5px;
+    position:relative;
+
+    -webkit-border-radius: 10px;
+    -moz-border-radius: 10px;
+    border-radius: 10px;
+}
+
+.dump-main .dump-item-header{
+    float: left;
+    clear: both;
+}
+
+.dump-main .dump-item-content{
+    clear: both;
+
+}
+
+ul.dump-node{
+    margin: 0 0 0 10px;
+    padding: 0;
+    overflow: hidden;
+}
+
+ul.dump-firstnode{
+    margin-top:5px;
+    margin-bottom: 5px;
+    text-align: left;
+}
+
+ul.dump-node li{
+    display: block;
+    list-style: none;
+    margin:0 !important;
+    padding:0 !important;
+}
+
+.dump-item-header{
+    padding: 2px 0 3px 20px;
+    background-image: url("empty.gif");
+    background-position: 6px center;
+    background-repeat: no-repeat;  
+    white-space: nowrap;  
+    overflow: hidden;    
+    text-overflow: ellipsis;
+}
+.dump-item-collapsed{
+    background-image: url("collapsed.gif");
+    cursor: pointer;
+}
+
+.dump-item-expanded{
+    background-image: url("expanded.gif");
+}
+
+.dump-item-name{  
+    color: #3769A0;
+    font-weight: bold;
+    margin-right: 5px;
+}
+
+.dump-item-name img{  
+    margin: 0 5px;
+    vertical-align: middle;
+}
+
+.dump-item-info{  
+    color: #953FA1;
+}
+
+.dump-item-value{
+    color: #FFFD70;
+    margin-left: 5px;
+}
+
+.dump-item-content{
+    margin-left: 15px;
+}
+
+.dump-string, .dump-exception, .dump-source{
+    background: #121212;
+    border: 1px dotted #323232;
+    padding: 5px;
+    margin:5px 0;
+    position: relative;
+}
+
+.dump-source{
+    padding: 1em 0 1em 0;
+    margin: 0;
+}
+
+.dump-source .edit-link{
+    color: #FFFD70;
+    display: block;
+    font-weight: bold;
+    margin: 0 0 10px 10px;
+    text-decoration: none;
+}
+
+.dump-source .edit-link:hover{
+    text-decoration: underline;
+}
+
+.dump-source .CodeMirror-scroll {
+    height: auto;
+    overflow-y: hidden;
+    overflow-x: auto;
+    width: 100%;
+}
+
+.dump-source .activeline {
+    background-color: #2C2C29 !important;
+}
+
+.dump-string-tools{
+    display: none;
+    position: absolute;
+    top:5px;
+    right:5px;
+    background-color: #F8F8F8;
+    padding: 8px;
+    border: 2px solid #323232 ;
+    color:#222;
+}
+
+.dump-string:hover .dump-string-tools{
+    display: block;
+}
+
+.dump-string-tools span{
+    cursor: pointer;
+}
+
+.dump-selected{
+    text-decoration: underline;
+}
+
+.dump-footer{
+    border-top: 1px dotted white;
+    padding-top:5px;
+}
+
+/* Superposición de nodos */
+
+.dump-expand{
+    background: url("expand.png");
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+
+    position: absolute;
+    right: 5px;
+    bottom: 5px;
+}
+
+#dump-overlay{
+    background-color: #777;
+    cursor: pointer;
+    display: block;
+    opacity: 0.7;
+    display: none;
+    left: 0;
+    position: absolute;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1100;
+}
+
+.dump-main.overlay{
+    z-index: 1101;
+    position: absolute;
+    opacity: 0;
+    width: 70%;
+    left: 15%;
+    right: 15%;
+}
+
+.dump-main .dump-close {   
+    width: 30px;
+    height: 30px;
+    cursor:pointer;
+    background: url('close.png');
+    position: absolute;
+    right: -20px;
+    top:-20px;
+}

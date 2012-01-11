@@ -1,0 +1,28 @@
+/* Loosely based on the SyntaxHighlighter Fade to Grey theme (http://alexgorbatchev.com/SyntaxHighlighter/manual/themes/fadetogrey.html) */
+
+.cm-s-graynight { background: #121212; color: #f8f8f8;font-family: "Consolas", "Bitstream Vera Sans Mono", "Courier New", Courier, monospace; }
+.cm-s-graynight span.CodeMirror-selected { background: #a8f !important; }
+.cm-s-graynight .CodeMirror-gutter { background: #121212; border-right: 3px solid #3185B9; }
+.cm-s-graynight .CodeMirror-gutter-text { color: #AFAFAF; }
+.cm-s-graynight .CodeMirror-cursor { border-left: 1px solid white !important; }
+
+.cm-s-graynight .CodeMirror-gutter-text pre { padding: 0 0.5em 0 1em;line-height: 1.1em; }
+.cm-s-graynight .CodeMirror-lines pre { padding: 0 0.75em; line-height: 1.1em;}
+
+
+.cm-s-graynight span.cm-comment { color: #6900a1; }
+.cm-s-graynight span.cm-atom { color: #845dc4; }
+.cm-s-graynight span.cm-number, .cm-s-graynight span.cm-attribute { color: #ffd500; }
+.cm-s-graynight span.cm-keyword { color: #D01D33; }
+.cm-s-graynight span.cm-string { color: #E3E658; }
+.cm-s-graynight span.cm-meta { color: #7678e2; }
+.cm-s-graynight span.cm-variable-2, .cm-s-graynight span.cm-tag { color: #898989; }
+.cm-s-graynight span.cm-variable-3, .cm-s-graynight span.cm-def { color: white; }
+.cm-s-graynight span.cm-error { color: #9d1e15; }
+.cm-s-graynight span.cm-bracket { color: #8da6ce; }
+.cm-s-graynight span.cm-comment { color: #696854; }
+.cm-s-graynight span.cm-builtin, .cm-s-graynight span.cm-special { color: #ff9e59; }
+
+.cm-s-graynight .activeline, .cm-s-graynight .highlighted{
+    background-color: #2C2C29 !important;
+}
