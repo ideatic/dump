@@ -1,11 +1,16 @@
 <?php
-require 'Dump.php';
 
-//Configuration
-Dump::config('dump-static', array(
-    'APP_PATH' => dirname(__FILE__)
-        )
-);
+function dump() {
+    if (!class_exists('Dump')) {
+        require 'Dump.php';
+        //Configuration
+        Dump::config('dump-static', array(
+            'APP_PATH' => dirname(__FILE__)
+                )
+        );
+    }
+    call_user_func_array(array('Dump', 'show'), func_get_args());
+}
 
 function do_test() {
     foo('dummy', 2);

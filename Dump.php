@@ -466,25 +466,34 @@ abstract class Dump {
 
 if (!function_exists('dump')) {
 
+    /**
+     * Echo information about the selected variable.
+     * This function can be overwrited for autoload the DUMP class, e.g.:
+     * @code
+     * function dump() {
+     *      if (!class_exists('Dump', false)) {
+     *          require SYSTEM_PATH . '/third_party/Dump.php';
+     *          Dump::config(...);
+     *      }
+     *      call_user_func_array(array('Dump', 'show'), func_get_args());
+     * }
+     * @endcode
+     */
     function dump() {
         call_user_func_array(array('Dump', 'show'), func_get_args());
     }
 
 }
 
-if (!function_exists('dumpdie')) {
-
-    function dumpdie() {
-        //Clean all output buffers
-        while (ob_get_clean()) {
-            ;
-        }
-
-        //Dump info
-        call_user_func_array(array('Dump', 'show'), func_get_args());
-
-        //Exit
-        die(1);
+function dumpdie() {
+    //Clean all output buffers
+    while (ob_get_clean()) {
+        ;
     }
 
+    //Dump info
+    dump(func_get_args());
+
+    //Exit
+    die(1);
 }
