@@ -359,7 +359,7 @@ abstract class Dump {
      * @return string
      */
     public static function clean_path($path, $restore = false) {
-        foreach (self::$_special_paths as $source_path => $clean_path) {
+        foreach (self::$_special_paths as $clean_path => $source_path) {
             if ($restore) {
                 if (strpos($path, $clean_path) === 0) {
                     $path = $source_path . substr($path, strlen($clean_path));

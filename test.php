@@ -3,7 +3,8 @@ require 'Dump.php';
 
 //Configuration
 Dump::config('dump-static', array(
-    dirname(__FILE__) => 'APP_PATH')
+    'APP_PATH' => dirname(__FILE__)
+        )
 );
 
 function do_test() {
@@ -23,7 +24,7 @@ function baz($a, $b) {
 
     echo '<h2>Debug backtrace</h2>';
     dump(debug_backtrace());
-    
+
     echo '<h2>Debug backtrace (processed)</h2>';
     dump(Dump::analize_trace(debug_backtrace()));
 
@@ -39,7 +40,9 @@ function baz($a, $b) {
 }
 
 class DummyClass {
+
     public $field;
+
 }
 ?>
 <!doctype html>
@@ -50,6 +53,6 @@ class DummyClass {
     </head>
     <body>
         <h1>Dump test</h1>
-        <?php do_test(); ?>
+<?php do_test(); ?>
     </body>
 </html>
