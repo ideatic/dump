@@ -7,13 +7,15 @@
  */
 abstract class Dump {
 
-    private static $_recursion_objects;
     private static $_static_url;
     private static $_special_paths;
+    private static $_nesting_level = 10;
+    private static $_recursion_objects;
 
-    public static function config($static_url = 'dump-static', $special_paths = array()) {
+    public static function config($static_url = 'dump-static', $special_paths = array(), $nesting_level = 10) {
         self::$_static_url = $static_url;
         self::$_special_paths = $special_paths;
+        self::$_nesting_level = $nesting_level;
     }
 
     /**
@@ -59,11 +61,6 @@ abstract class Dump {
 
             $info[] = self::_render(empty($name) || is_numeric($name) ? '...' : $name, $value);
 
-            //Clean recursion marks
-            foreach (self::$_recursion_objects as $marker => $var) {
-                if (is_array($var))
-                    unset($var[$marker]);
-            }
             self::$_recursion_objects = null;
         }
 
@@ -76,7 +73,7 @@ abstract class Dump {
                 }
             }
             $step['file'] = self::clean_path($step['file']);
-            $action = reset($data) instanceof Exception ? 'Thrown' : 'Called';
+            $action = count($data) == 1 && reset($data) instanceof Exception ? 'Thrown' : 'Called';
         }
 
         //Generate HTML
@@ -95,13 +92,13 @@ abstract class Dump {
         return $html;
     }
 
-    private static function _render($name, &$data, $metadata = null) {
+    private static function _render($name, &$data, $level = 0, $metadata = null) {
         if ($data instanceof Exception) {
             $render = self::_render_exception($data);
         } elseif (is_object($data)) {
-            $render = self::_render_vars(true, $name, $data, $metadata);
+            $render = self::_render_vars(true, $name, $data, $level, $metadata);
         } elseif (is_array($data)) {
-            $render = self::_render_vars(false, $name, $data, $metadata);
+            $render = self::_render_vars(false, $name, $data, $level, $metadata);
         } elseif (is_resource($data)) {
             $render = self::_render_item($name, 'Resource', get_resource_type($data), $metadata);
         } elseif (is_string($data)) {
@@ -138,13 +135,14 @@ abstract class Dump {
         return self::_html_element('div', array('class' => 'dump-item-header' . (empty($inner_html) ? '' : ' dump-item-collapsed')), array(
                     array('span', array('class' => 'dump-item-name'), $name),
                     empty($info) ? '' : "($info)",
-                    !empty($value) ? array('span', array('class' => 'dump-item-value'), htmlspecialchars($value)) : '',
+                    // !empty($value) ? array('span', array('class' => 'dump-item-value'), htmlspecialchars($value)) : '',
+                    array('span', array('class' => 'dump-item-value'), htmlspecialchars($value)),
                 )) . $inner_html;
     }
 
     private static function _render_exception(Exception &$e) {
         $inner = array();
-        $analized_trace = self::analize_trace($e->getTrace());
+        $analized_trace = self::backtrace($e->getTrace());
         $path = self::clean_path($e->getFile());
 
         //Exception name
@@ -169,10 +167,14 @@ abstract class Dump {
             $inner[] = self::_render_source_code('Source', $source, $path, $e->getLine());
         }
 
-        //Context
+        //Context and data
         if (method_exists($e, 'getContext')) {
             $context = $e->getContext();
             $inner[] = self::_render('Context', $context);
+        }
+        if (method_exists($e, 'getData')) {
+            $data = $e->getData();
+            $inner[] = self::_render('Data', $data);
         }
 
         //Backtrace
@@ -181,32 +183,13 @@ abstract class Dump {
         return self::_render_item($name, $path . ':' . $e->getLine(), strip_tags($message), '', '', $inner);
     }
 
-    private static function _render_vars($is_object, $name, &$data, $metadata = '') {
-        //Avoid infinite recursion
-        //Compare objects with === (harmless)
-        //Recursive arrays can't be compared with ===, they throw the error Nesting level too deep - recursive dependency?, use a mark
-        $is_recursive = false;
-        foreach (self::$_recursion_objects as $key => $object) {
-            if (($is_object && $object === $data) || (!$is_object && isset($data[$key]))) {
-                $is_recursive = true;
-                break;
-            }
-        }
-
+    private static function _render_vars($is_object, $name, &$data, $level = 0, $metadata = '') {
         //"Patch" to detect if the current array is a backtrace
         $is_backtrace = !$is_object && isset($data['function']) && is_string($data['function']) &&
                 isset($data['file']) && is_string($data['file']);
 
-        if (!$is_recursive) {
-            //Mark the item for next iterations
-            do {
-                $marker = uniqid('dump');
-            } while (isset(self::$_recursion_objects[$marker]) || (!$is_object && isset($data[$marker])));
-            if (!$is_object) {
-                $data[$marker] = 1;
-            }
-            self::$_recursion_objects[$marker] = $data;
-
+        $recursive = $level > 4 && $is_object && in_array($data, self::$_recursion_objects);
+        if ($level < self::$_nesting_level && !$recursive) {
             //Render subitems
             $inner_html = array();
             if ($is_object) {
@@ -230,24 +213,23 @@ abstract class Dump {
                         //Build field
                         $property->setAccessible(true);
                         $value = $property->getValue($data);
-                        $inner_html[] = self::_render($property->name, $value, implode(', ', $meta));
+                        $inner_html[] = self::_render($property->name, $value, $level + 1, implode(', ', $meta));
                         $properties_count++;
                     }
                 } else {
                     $properties = get_object_vars($data);
                     foreach ($properties as $key => &$value) {
-                        $inner_html[] = self::_render($key, $value);
+                        $inner_html[] = self::_render($key, $value, $level + 1);
                         $properties_count++;
                     }
                 }
+                self::$_recursion_objects[] = $data;
             } else {//Array
                 foreach ($data as $key => &$value) {
-                    if ($key !== $marker) {
-                        if ($is_backtrace && $key == 'source' && is_string($value) && !empty($value)) {
-                            $inner_html[] = self::_render_source_code($key, $value, $data['file'], $data['line']);
-                        } else {
-                            $inner_html[] = self::_render($key, $value);
-                        }
+                    if ($is_backtrace && $key == 'source' && is_string($value) && !empty($value)) {
+                        $inner_html[] = self::_render_source_code($key, $value, $data['file'], $data['line']);
+                    } else {
+                        $inner_html[] = self::_render($key, $value, $level + 1);
                     }
                 }
             }
@@ -261,10 +243,10 @@ abstract class Dump {
         } else {
             if ($is_backtrace) {
                 $type = $data['function'];
-                $info = (count($data['args']) - 1) . ' parameters';
+                $info = count($data['args']) . ' parameters';
             } else {
                 $type = 'Array';
-                $info = (count($data) - 1) . ' elements';
+                $info = count($data) . ' elements';
             }
 
             return self::_render_item($name, $type, '', $metadata, $info, $inner_html);
@@ -288,7 +270,7 @@ abstract class Dump {
      * @param array $ call stack trace to be analyzed, if not use this parameter indicates the call stack before the function
      * @return array
      */
-    public static function analize_trace(array $trace = null) {
+    public static function backtrace(array $trace = null) {
         if ($trace === null) {
             $trace = debug_backtrace();
         }
@@ -485,15 +467,19 @@ if (!function_exists('dump')) {
 
 }
 
-function dumpdie() {
-    //Clean all output buffers
-    while (ob_get_clean()) {
-        ;
+if (!function_exists('dumpdie')) {
+
+    function dumpdie() {
+        //Clean all output buffers
+        while (ob_get_clean()) {
+            ;
+        }
+
+        //Dump info
+        dump(func_get_args());
+
+        //Exit
+        die(1);
     }
 
-    //Dump info
-    dump(func_get_args());
-
-    //Exit
-    die(1);
 }
