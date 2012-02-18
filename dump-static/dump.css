@@ -92,6 +92,16 @@ ul.dump-node li{
     margin:5px 0;
     position: relative;
 }
+.dump-string, .dump-string-text{
+    font-family: Consolas, monospace;
+    white-space: pre;
+}
+
+.dump-string-html{
+    font-family: Arial,sans-serif;
+    white-space: normal;
+}
+
 
 .dump-source{
     padding: 1em 0 1em 0;
@@ -149,7 +159,7 @@ ul.dump-node li{
     padding-top:5px;
 }
 
-/* Superposición de nodos */
+/* Superposición */
 
 .dump-expand{
     background: url("expand.png");
@@ -160,6 +170,24 @@ ul.dump-node li{
     position: absolute;
     right: 5px;
     bottom: 5px;
+}
+
+
+.dump-main.overlay{
+    z-index: 1101;
+    position: absolute;
+    opacity: 0;
+    width: 70%;
+    left: 15%;
+    right: 15%;
+
+    box-shadow: 0 0 20px #000;
+    -moz-box-shadow: 0 0 20px #000;
+    -webkit-box-shadow: 0 0 20px #000;
+}
+
+.dump-main.overlay .dump-expand {
+    display: none; /* Hide expand button */
 }
 
 #dump-overlay{
@@ -174,15 +202,6 @@ ul.dump-node li{
     width: 100%;
     height: 100%;
     z-index: 1100;
-}
-
-.dump-main.overlay{
-    z-index: 1101;
-    position: absolute;
-    opacity: 0;
-    width: 70%;
-    left: 15%;
-    right: 15%;
 }
 
 .dump-main .dump-close {   
