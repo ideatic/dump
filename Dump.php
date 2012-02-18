@@ -7,12 +7,12 @@
  */
 abstract class Dump {
 
-    private static $_static_url;
-    private static $_special_paths;
+    private static $_static_url = '/dump-static';
+    private static $_special_paths = array();
     private static $_nesting_level = 10;
     private static $_recursion_objects;
 
-    public static function config($static_url = 'dump-static', $special_paths = array(), $nesting_level = 10) {
+    public static function config($static_url = '/dump-static', $special_paths = array(), $nesting_level = 10) {
         self::$_static_url = $static_url;
         self::$_special_paths = $special_paths;
         self::$_nesting_level = $nesting_level;
