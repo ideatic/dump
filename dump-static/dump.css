@@ -91,6 +91,7 @@ ul.dump-node li{
     padding: 5px;
     margin:5px 0;
     position: relative;
+    min-height: 20px;
 }
 .dump-string, .dump-string-text{
     font-family: Consolas, monospace;

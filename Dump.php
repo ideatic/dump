@@ -133,7 +133,7 @@ abstract class Dump {
 
         $inner_html = empty($inner_html) ? '' : self::_html_element('div', array('class' => 'dump-item-content', 'style' => 'display:none'), '<ul class="dump-node"><li>' . implode('</li><li>', (is_array($inner_html) ? $inner_html : array($inner_html))) . '</li></ul>');
         return self::_html_element('div', array('class' => 'dump-item-header' . (empty($inner_html) ? '' : ' dump-item-collapsed')), array(
-                    array('span', array('class' => 'dump-item-name'), $name),
+                    array('span', array('class' => 'dump-item-name'), htmlspecialchars($name)),
                     empty($info) ? '' : "($info)",
                     // !empty($value) ? array('span', array('class' => 'dump-item-value'), htmlspecialchars($value)) : '',
                     array('span', array('class' => 'dump-item-value'), htmlspecialchars($value)),
@@ -374,6 +374,7 @@ abstract class Dump {
         $start = max(1, $line_number - $padding);
         $end = $line_number + $padding;
 
+        $source=array();
         for ($line = 1; ($row = fgets($file)) !== FALSE && $line < $end; $line++) {
             if ($line >= $start) {
                 $source[] = trim($row) == '' ? "&nbsp;\n" : htmlspecialchars($row, ENT_NOQUOTES);
