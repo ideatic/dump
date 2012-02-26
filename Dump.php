@@ -120,7 +120,7 @@ abstract class Dump {
         return $render;
     }
 
-    private static function _render_item($name, $type = '', $value = '', $metadata = '', $extra_info = '', $inner_html = null) {
+    private static function _render_item($name, $type = '', $value = '', $metadata = '', $extra_info = '', $inner_html = null, $image = null) {
         $info = '';
         if (!empty($type)) {
             $info.= self::_html_element('span', array('class' => 'dump-item-type'), !empty($metadata) ? "$metadata, $type" : $type);
@@ -133,6 +133,7 @@ abstract class Dump {
 
         $inner_html = empty($inner_html) ? '' : self::_html_element('div', array('class' => 'dump-item-content', 'style' => 'display:none'), '<ul class="dump-node"><li>' . implode('</li><li>', (is_array($inner_html) ? $inner_html : array($inner_html))) . '</li></ul>');
         return self::_html_element('div', array('class' => 'dump-item-header' . (empty($inner_html) ? '' : ' dump-item-collapsed')), array(
+                    empty($image) ? '' : self::_html_element('img', array('src' => $image)),
                     array('span', array('class' => 'dump-item-name'), htmlspecialchars($name)),
                     empty($info) ? '' : "($info)",
                     // !empty($value) ? array('span', array('class' => 'dump-item-value'), htmlspecialchars($value)) : '',
@@ -146,8 +147,7 @@ abstract class Dump {
         $path = self::clean_path($e->getFile());
 
         //Exception name
-        $name = self::_html_element('img', array('src' => self::$_static_url . '/exception.png'));
-        $name.=get_class($e);
+        $name = get_class($e);
 
         //Basic info about the exception
         $message = $e->getMessage();
@@ -180,7 +180,7 @@ abstract class Dump {
         //Backtrace
         $inner[] = self::_render_vars(false, 'Backtrace', $analized_trace);
 
-        return self::_render_item($name, $path . ':' . $e->getLine(), strip_tags($message), '', '', $inner);
+        return self::_render_item($name, $path . ':' . $e->getLine(), strip_tags($message), '', '', $inner, self::$_static_url . '/exception.png');
     }
 
     private static function _render_vars($is_object, $name, &$data, $level = 0, $metadata = '') {
@@ -374,7 +374,7 @@ abstract class Dump {
         $start = max(1, $line_number - $padding);
         $end = $line_number + $padding;
 
-        $source=array();
+        $source = array();
         for ($line = 1; ($row = fgets($file)) !== FALSE && $line < $end; $line++) {
             if ($line >= $start) {
                 $source[] = trim($row) == '' ? "&nbsp;\n" : htmlspecialchars($row, ENT_NOQUOTES);
