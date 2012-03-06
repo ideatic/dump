@@ -55,26 +55,38 @@ abstract class Dump {
         }
 
         //Render data
-        $info = array();
-        foreach ($data as $name => $value) {
-            self::$_recursion_objects = array();
+        if (count($data) == 1 && ($e = reset($data)) instanceof Exception) {
+            $info = array(self::_render_exception($data[0], false));
 
-            $info[] = self::_render(empty($name) || is_numeric($name) ? '...' : $name, $value);
+            //Caller info
+            $action = 'Thrown';
+            $step['file'] = self::clean_path($e->getFile());
+            $step['line'] = $e->getLine();
+        } else {
+            $info = array();
+            foreach ($data as $name => $value) {
+                self::$_recursion_objects = array();
 
-            self::$_recursion_objects = null;
-        }
+                $info[] = self::_render(empty($name) || is_numeric($name) ? '...' : $name, $value);
 
-        //Get caller
-        if ($show_caller) {
-            $trace = debug_backtrace();
-            while ($step = array_pop($trace)) {
-                if ((strToLower($step['function']) == 'dump' || strToLower($step['function']) == 'dumpdie') || (isset($step['class']) && strToLower($step['class']) == 'dump')) {
-                    break;
-                }
+                self::$_recursion_objects = null;
             }
-            $step['file'] = self::clean_path($step['file']);
-            $action = count($data) == 1 && reset($data) instanceof Exception ? 'Thrown' : 'Called';
+
+            //Caller info
+            if ($show_caller) {
+
+                $action = 'Called';
+                $trace = debug_backtrace();
+                while ($step = array_pop($trace)) {
+                    if ((strToLower($step['function']) == 'dump' || strToLower($step['function']) == 'dumpdie') || (isset($step['class']) && strToLower($step['class']) == 'dump')) {
+                        break;
+                    }
+                }
+                $step['file'] = self::clean_path($step['file']);
+            }
         }
+
+
 
         //Generate HTML
         $html = '';
@@ -141,7 +153,7 @@ abstract class Dump {
                 )) . $inner_html;
     }
 
-    private static function _render_exception(Exception &$e) {
+    private static function _render_exception(Exception &$e, $show_location = true) {
         $inner = array();
         $analized_trace = self::backtrace($e->getTrace());
         $path = self::clean_path($e->getFile());
@@ -180,7 +192,7 @@ abstract class Dump {
         //Backtrace
         $inner[] = self::_render_vars(false, 'Backtrace', $analized_trace);
 
-        return self::_render_item($name, $path . ':' . $e->getLine(), strip_tags($message), '', '', $inner, self::$_static_url . '/exception.png');
+        return self::_render_item($name, $show_location ? ($path . ':' . $e->getLine()) : '', strip_tags($message), '', '', $inner, self::$_static_url . '/exception.png');
     }
 
     private static function _render_vars($is_object, $name, &$data, $level = 0, $metadata = '') {
