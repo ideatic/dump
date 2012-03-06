@@ -67,11 +67,6 @@ ul.dump-node li{
     margin-right: 5px;
 }
 
-.dump-item-name img{  
-    margin: 0 5px;
-    vertical-align: middle;
-}
-
 .dump-item-info{  
     color: #953FA1;
 }
@@ -91,7 +86,6 @@ ul.dump-node li{
     padding: 5px;
     margin:5px 0;
     position: relative;
-    min-height: 20px;
 }
 .dump-string, .dump-string-text{
     font-family: Consolas, monospace;
@@ -158,6 +152,13 @@ ul.dump-node li{
 .dump-footer{
     border-top: 1px dotted white;
     padding-top:5px;
+}
+
+/* Tipos */
+.dump-item-header.exception .dump-item-name {
+    background: url("exception.png") no-repeat left center;
+    color: #C83937;
+    padding: 12px 0 12px 30px;
 }
 
 /* Superposición */

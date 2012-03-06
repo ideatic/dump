@@ -57,18 +57,18 @@ abstract class Dump {
         //Render data
         if (count($data) == 1 && ($e = reset($data)) instanceof Exception) {
                 self::$_recursion_objects = array();
-            $info = array(self::_render_exception($data[0], false));
+            $inner = array(self::_render_exception($data[0], false));
 
             //Caller info
             $action = 'Thrown';
             $step['file'] = self::clean_path($e->getFile());
             $step['line'] = $e->getLine();
         } else {
-            $info = array();
+            $inner = array();
             foreach ($data as $name => $value) {
                 self::$_recursion_objects = array();
 
-                $info[] = self::_render(empty($name) || is_numeric($name) ? '...' : $name, $value);
+                $inner[] = self::_render(empty($name) || is_numeric($name) ? '...' : $name, $value);
 
                 self::$_recursion_objects = null;
             }
@@ -99,7 +99,7 @@ abstract class Dump {
         }
 
         $html.=self::_html_element('div', array('class' => 'dump-main'), array(
-                    '<ul class="dump-node dump-firstnode"><li>' . implode('</li><li>', $info) . '</li></ul>',
+                    '<ul class="dump-node dump-firstnode"><li>' . implode('</li><li>', $inner) . '</li></ul>',
                     isset($step) && $show_caller ? self::_html_element('div', array('class' => 'dump-footer'), "$action from {$step['file']}, line {$step['line']}") : ''
                 ));
         return $html;
@@ -133,7 +133,10 @@ abstract class Dump {
         return $render;
     }
 
-    private static function _render_item($name, $type = '', $value = '', $metadata = '', $extra_info = '', $inner_html = null, $image = null) {
+    private static function _render_item($name, $type = '', $value = '', $metadata = '', $extra_info = '', $inner_html = null, $class=null) {
+        if(!isset($class))
+            $class=  strtolower ($type);
+        
         $info = '';
         if (!empty($type)) {
             $info.= self::_html_element('span', array('class' => 'dump-item-type'), !empty($metadata) ? "$metadata, $type" : $type);
@@ -144,9 +147,9 @@ abstract class Dump {
             $info.= self::_html_element('span', array('class' => 'dump-item-info'), $extra_info);
         }
 
-        $inner_html = empty($inner_html) ? '' : self::_html_element('div', array('class' => 'dump-item-content', 'style' => 'display:none'), '<ul class="dump-node"><li>' . implode('</li><li>', (is_array($inner_html) ? $inner_html : array($inner_html))) . '</li></ul>');
-        return self::_html_element('div', array('class' => 'dump-item-header' . (empty($inner_html) ? '' : ' dump-item-collapsed')), array(
-                    empty($image) ? '' : self::_html_element('img', array('src' => $image)),
+        $inner_html = empty($inner_html) ? '' : self::_html_element('div', array('class' => "dump-item-content $class", 'style' => 'display:none'), '<ul class="dump-node"><li>' . implode('</li><li>', (is_array($inner_html) ? $inner_html : array($inner_html))) . '</li></ul>');
+    
+        return self::_html_element('div', array('class' => "dump-item-header $class" . (empty($inner_html) ? '' : ' dump-item-collapsed')), array(
                     array('span', array('class' => 'dump-item-name'), htmlspecialchars($name)),
                     empty($info) ? '' : "($info)",
                     // !empty($value) ? array('span', array('class' => 'dump-item-value'), htmlspecialchars($value)) : '',
@@ -193,7 +196,7 @@ abstract class Dump {
         //Backtrace
         $inner[] = self::_render_vars(false, 'Backtrace', $analized_trace);
 
-        return self::_render_item($name, $show_location ? ($path . ':' . $e->getLine()) : '', strip_tags($message), '', '', $inner, self::$_static_url . '/exception.png');
+        return self::_render_item($name, $show_location ? ($path . ':' . $e->getLine()) : '', strip_tags($message), '', '', $inner, 'exception');
     }
 
     private static function _render_vars($is_object, $name, &$data, $level = 0, $metadata = '') {
