@@ -56,6 +56,7 @@ abstract class Dump {
 
         //Render data
         if (count($data) == 1 && ($e = reset($data)) instanceof Exception) {
+                self::$_recursion_objects = array();
             $info = array(self::_render_exception($data[0], false));
 
             //Caller info
