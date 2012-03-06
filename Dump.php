@@ -56,8 +56,8 @@ abstract class Dump {
 
         //Render data
         if (count($data) == 1 && ($e = reset($data)) instanceof Exception) {
-                self::$_recursion_objects = array();
-            $inner = array(self::_render_exception($data[0], false));
+            self::$_recursion_objects = array();
+            $inner = array(self::_render_exception($e, false));
 
             //Caller info
             $action = 'Thrown';
@@ -133,10 +133,10 @@ abstract class Dump {
         return $render;
     }
 
-    private static function _render_item($name, $type = '', $value = '', $metadata = '', $extra_info = '', $inner_html = null, $class=null) {
-        if(!isset($class))
-            $class=  strtolower ($type);
-        
+    private static function _render_item($name, $type = '', $value = '', $metadata = '', $extra_info = '', $inner_html = null, $class = null) {
+        if (!isset($class))
+            $class = strtolower($type);
+
         $info = '';
         if (!empty($type)) {
             $info.= self::_html_element('span', array('class' => 'dump-item-type'), !empty($metadata) ? "$metadata, $type" : $type);
@@ -148,7 +148,7 @@ abstract class Dump {
         }
 
         $inner_html = empty($inner_html) ? '' : self::_html_element('div', array('class' => "dump-item-content $class", 'style' => 'display:none'), '<ul class="dump-node"><li>' . implode('</li><li>', (is_array($inner_html) ? $inner_html : array($inner_html))) . '</li></ul>');
-    
+
         return self::_html_element('div', array('class' => "dump-item-header $class" . (empty($inner_html) ? '' : ' dump-item-collapsed')), array(
                     array('span', array('class' => 'dump-item-name'), htmlspecialchars($name)),
                     empty($info) ? '' : "($info)",

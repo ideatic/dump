@@ -7,7 +7,7 @@
 .cm-s-graynight .CodeMirror-cursor { border-left: 1px solid white !important; }
 
 .cm-s-graynight .CodeMirror-gutter-text pre { padding: 0 0.5em 0 1em;line-height: 1.1em; }
-.cm-s-graynight .CodeMirror-lines pre { padding: 0 0.75em; line-height: 1.1em;}
+.cm-s-graynight .CodeMirror-lines pre { padding: 0 0.75em; line-height: 1.1em;color: #f8f8f8;}
 
 
 .cm-s-graynight span.cm-comment { color: #6900a1; }
@@ -16,6 +16,7 @@
 .cm-s-graynight span.cm-keyword { color: #D01D33; }
 .cm-s-graynight span.cm-string { color: #E3E658; }
 .cm-s-graynight span.cm-meta { color: #7678e2; }
+.cm-s-graynight span.cm-word { color: #F8F8F8; }
 .cm-s-graynight span.cm-variable-2, .cm-s-graynight span.cm-tag { color: #898989; }
 .cm-s-graynight span.cm-variable-3, .cm-s-graynight span.cm-def { color: white; }
 .cm-s-graynight span.cm-error { color: #9d1e15; }
