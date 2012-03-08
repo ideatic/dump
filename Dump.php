@@ -463,7 +463,7 @@ abstract class Dump {
 
 //Define shortcuts
 
-if (!function_exists('dump')) {
+if (!function_exists('dump')) :
 
     /**
      * Echo information about the selected variable.
@@ -482,9 +482,9 @@ if (!function_exists('dump')) {
         call_user_func_array(array('Dump', 'show'), func_get_args());
     }
 
-}
+endif;
 
-if (!function_exists('dumpdie')) {
+if (!function_exists('dumpdie')) :
 
     function dumpdie() {
         //Clean all output buffers
@@ -493,10 +493,10 @@ if (!function_exists('dumpdie')) {
         }
 
         //Dump info
-        dump(func_get_args());
+        call_user_func_array('dump', func_get_args());
 
         //Exit
         die(1);
     }
 
-}
+endif;
