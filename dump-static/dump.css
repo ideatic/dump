@@ -86,6 +86,7 @@ ul.dump-node li{
     padding: 5px;
     margin:5px 0;
     position: relative;
+    word-wrap: break-word;
 }
 .dump-string, .dump-string-text{
     font-family: Consolas, monospace;
@@ -158,6 +159,7 @@ ul.dump-node li{
 .dump-item-header.exception .dump-item-name {
     background: url("exception.png") no-repeat left center;
     color: #C83937;
+    line-height: 25px;
     padding: 12px 0 12px 30px;
 }
 

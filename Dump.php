@@ -9,7 +9,7 @@ abstract class Dump {
 
     private static $_static_url = '/dump-static';
     private static $_special_paths = array();
-    private static $_nesting_level = 10;
+    private static $_nesting_level = 5;
     private static $_recursion_objects;
 
     public static function config($static_url = '/dump-static', $special_paths = array(), $nesting_level = 10) {
@@ -60,6 +60,7 @@ abstract class Dump {
             $inner = array(self::_render_exception($e, false));
 
             //Caller info
+            $show_caller=true;
             $action = 'Thrown';
             $step['file'] = self::clean_path($e->getFile());
             $step['line'] = $e->getLine();
@@ -107,7 +108,7 @@ abstract class Dump {
 
     private static function _render($name, &$data, $level = 0, $metadata = null) {
         if ($data instanceof Exception) {
-            $render = self::_render_exception($data);
+            $render = self::_render_exception($data, true, $level);
         } elseif (is_object($data)) {
             $render = self::_render_vars(true, $name, $data, $level, $metadata);
         } elseif (is_array($data)) {
@@ -157,7 +158,7 @@ abstract class Dump {
                 )) . $inner_html;
     }
 
-    private static function _render_exception(Exception &$e, $show_location = true) {
+    private static function _render_exception(Exception &$e, $show_location = true, $level = 0) {
         $inner = array();
         $analized_trace = self::backtrace($e->getTrace());
         $path = self::clean_path($e->getFile());
@@ -186,15 +187,15 @@ abstract class Dump {
         //Context and data
         if (method_exists($e, 'getContext')) {
             $context = $e->getContext();
-            $inner[] = self::_render('Context', $context);
+            $inner[] = self::_render('Context', $context, $level+1);
         }
         if (method_exists($e, 'getData')) {
             $data = $e->getData();
-            $inner[] = self::_render('Data', $data);
+            $inner[] = self::_render('Data', $data, $level+1);
         }
 
         //Backtrace
-        $inner[] = self::_render_vars(false, 'Backtrace', $analized_trace);
+        $inner[] = self::_render_vars(false, 'Backtrace', $analized_trace, $level);
 
         return self::_render_item($name, $show_location ? ($path . ':' . $e->getLine()) : '', strip_tags($message), '', '', $inner, 'exception');
     }
@@ -204,7 +205,7 @@ abstract class Dump {
         $is_backtrace = !$is_object && isset($data['function']) && is_string($data['function']) &&
                 isset($data['file']) && is_string($data['file']);
 
-        $recursive = $level > 4 && $is_object && in_array($data, self::$_recursion_objects);
+        $recursive = $level > 4 && $is_object && in_array($data, self::$_recursion_objects, true);
         if ($level < self::$_nesting_level && !$recursive) {
             //Render subitems
             $inner_html = array();
@@ -250,7 +251,7 @@ abstract class Dump {
                 }
             }
         } else {
-            $inner_html = '&#8734;';
+            $inner_html = '&infin;';
         }
 
         //Render item
