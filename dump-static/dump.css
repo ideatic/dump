@@ -1,110 +1,126 @@
-/* Dump de valores */
-.dump-main{
+.dump-main {
     background: url("overlay.gif") #222;
     border: 8px solid #000;
     color: #FFF;
-    font-family: "Consolas","Courier New","Lucida Console", monospace;
+    font-family: "Consolas", "Courier New", "Lucida Console", monospace;
     font-size: 12px;
-    padding:5px;
-    margin:5px;
-    position:relative;
+    padding: 5px;
+    margin: 5px;
+    position: relative;
 
     -webkit-border-radius: 10px;
     -moz-border-radius: 10px;
     border-radius: 10px;
 }
 
-.dump-main .dump-item-header{
+.dump-main .dump-item-header {
     float: left;
     clear: both;
 }
 
-.dump-main .dump-item-content{
+.dump-main .dump-item-content {
     clear: both;
 
 }
 
-ul.dump-node{
+.dump-main span {
+    display: inline;
+}
+
+ul.dump-node {
     margin: 0 0 0 10px;
     padding: 0;
     overflow: hidden;
 }
 
-ul.dump-firstnode{
-    margin-top:5px;
+ul.dump-firstnode {
+    margin-top: 5px;
     margin-bottom: 5px;
     text-align: left;
 }
 
-ul.dump-node li{
+ul.dump-node li {
     display: block;
     list-style: none;
-    margin:0 !important;
-    padding:0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
 }
 
-.dump-item-header{
+.dump-main .dump-item-header {
     padding: 2px 0 3px 20px;
     background-image: url("empty.gif");
     background-position: 6px center;
-    background-repeat: no-repeat;  
-    white-space: nowrap;  
-    overflow: hidden;    
+    background-repeat: no-repeat;
+    white-space: nowrap;
+    overflow: hidden;
     text-overflow: ellipsis;
 }
-.dump-item-collapsed{
+
+.dump-main .dump-item-collapsed {
     background-image: url("collapsed.gif");
     cursor: pointer;
 }
 
-.dump-item-expanded{
+.dump-main .dump-item-expanded {
     background-image: url("expanded.gif");
 }
 
-.dump-item-name{  
-    color: #3769A0;
+.dump-main .dump-item-name {
+    color: #4a8fd9;
     font-weight: bold;
     margin-right: 5px;
 }
 
-.dump-item-info{  
+.dump-main .dump-item-info {
     color: #953FA1;
 }
 
-.dump-item-value{
+.dump-main .dump-item-value {
     color: #FFFD70;
     margin-left: 5px;
 }
 
-.dump-item-content{
+.dump-main .dump-item-content {
     margin-left: 15px;
 }
 
-.dump-string, .dump-exception, .dump-source{
+.dump-main a{
+    color:#4a8fd9;
+}
+
+.dump-main a[target=_blank]{
+      background: url("external.png") no-repeat;
+    padding-left: 17px;
+}
+
+
+
+.dump-string, .dump-exception, .dump-source {
     background: #121212;
     border: 1px dotted #323232;
     padding: 5px;
-    margin:5px 0;
+    margin: 5px 0;
     position: relative;
     word-wrap: break-word;
+    white-space: pre-wrap;
 }
-.dump-string, .dump-string-text{
+
+.dump-string, .dump-string-text {
     font-family: Consolas, monospace;
     white-space: pre;
 }
 
-.dump-string-html{
-    font-family: Arial,sans-serif;
-    white-space: normal;
+.dump-string iframe {
+    width: 100%;
+    height: 500px;
 }
 
-
-.dump-source{
+.dump-source {
     padding: 1em 0 1em 0;
     margin: 0;
 }
 
-.dump-source .edit-link{
+.dump-source .edit-link {
     color: #FFFD70;
     display: block;
     font-weight: bold;
@@ -112,7 +128,7 @@ ul.dump-node li{
     text-decoration: none;
 }
 
-.dump-source .edit-link:hover{
+.dump-source .edit-link:hover {
     text-decoration: underline;
 }
 
@@ -127,35 +143,34 @@ ul.dump-node li{
     background-color: #2C2C29 !important;
 }
 
-.dump-string-tools{
+.dump-string-tools {
     display: none;
     position: absolute;
-    top:5px;
-    right:5px;
+    top: 5px;
+    right: 5px;
     background-color: #F8F8F8;
     padding: 8px;
-    border: 2px solid #323232 ;
-    color:#222;
+    border: 2px solid #323232;
+    color: #222;
 }
 
-.dump-string:hover .dump-string-tools{
+.dump-string:hover .dump-string-tools {
     display: block;
 }
 
-.dump-string-tools span{
+.dump-string-tools span {
     cursor: pointer;
 }
 
-.dump-selected{
+.dump-selected {
     text-decoration: underline;
 }
 
-.dump-footer{
+.dump-footer {
     border-top: 1px dotted white;
-    padding-top:5px;
+    padding-top: 5px;
 }
-
-/* Tipos */
+/* Types */
 .dump-item-header.exception .dump-item-name {
     background: url("exception.png") no-repeat left center;
     color: #C83937;
@@ -163,9 +178,9 @@ ul.dump-node li{
     padding: 12px 0 12px 30px;
 }
 
-/* Superposición */
+/* Overlay */
 
-.dump-expand{
+.dump-expand {
     background: url("expand.png");
     width: 16px;
     height: 16px;
@@ -176,8 +191,7 @@ ul.dump-node li{
     bottom: 5px;
 }
 
-
-.dump-main.overlay{
+.dump-main.overlay {
     z-index: 1101;
     position: absolute;
     opacity: 0;
@@ -194,7 +208,7 @@ ul.dump-node li{
     display: none; /* Hide expand button */
 }
 
-#dump-overlay{
+#dump-overlay {
     background-color: #777;
     cursor: pointer;
     display: block;
@@ -208,12 +222,23 @@ ul.dump-node li{
     z-index: 1100;
 }
 
-.dump-main .dump-close {   
+.dump-main .dump-close {
     width: 30px;
     height: 30px;
-    cursor:pointer;
+    cursor: pointer;
     background: url('close.png');
     position: absolute;
     right: -20px;
-    top:-20px;
+    top: -20px;
+}
+
+
+/* Automatic height for CodeMirror */
+.CodeMirror {
+  height: auto;
+}
+.CodeMirror-scroll {
+  overflow-y: hidden;
+  overflow-x: auto;
+  height: auto;
 }

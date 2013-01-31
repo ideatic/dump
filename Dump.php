@@ -45,7 +45,6 @@ abstract class Dump {
      * @return string
      */
     public static function render_data($name, $value = NULL, $show_caller = TRUE) {
-        static $static_send = FALSE;
 
         //Prepare data
         if (is_array($name)) {
@@ -90,19 +89,21 @@ abstract class Dump {
 
 
         //Generate HTML
-        $html = '';
-        if (!$static_send) {
-            $html .= self::_html_element('script', array('type' => 'text/javascript'), 'var dump_static_url="' . self::$_static_url . '";') .
-                    self::_html_element('script', array('type' => 'text/javascript', 'src' => self::$_static_url . '/jquery.js'), '') .
-                    self::_html_element('script', array('type' => 'text/javascript', 'src' => self::$_static_url . '/dump.js'), '') .
-                    self::_html_element('style', array('type' => 'text/css'), ' @import url("' . self::$_static_url . '/dump.css");');
-        }
+        $html = self::_get_static_resources();
+
 
         $html .= self::_html_element('div', array('class' => 'dump-main dump-pending'), array(
                     '<ul class="dump-node dump-firstnode"><li>' . implode('</li><li>', $inner) . '</li></ul>',
                     isset($step) && $show_caller ? self::_html_element('div', array('class' => 'dump-footer'), "$action from {$step['file']}, line {$step['line']}") : ''
                 ));
         return $html;
+    }
+
+    private static function _get_static_resources() {
+        return self::_html_element('script', array('type' => 'text/javascript'), 'var dump_static_url="' . self::$_static_url . '";') .
+                self::_html_element('script', array('type' => 'text/javascript'), 'window.jQuery || document.write(\'<script src="' . self::$_static_url . '/jquery.js' . '"><\/script>\')') .
+                self::_html_element('script', array('type' => 'text/javascript', 'src' => self::$_static_url . '/dump.js'), '') .
+                self::_html_element('style', array('type' => 'text/css'), ' @import url("' . self::$_static_url . '/dump.css");');
     }
 
     private static function _render($name, &$data, $level = 0, $metadata = NULL) {
@@ -398,6 +399,17 @@ abstract class Dump {
     }
 
     /**
+     * Renders source code of an specified programming language
+     * @param string $code
+     * @param string $language
+     * @return string
+     */
+    public static function source($code, $language = 'php', $theme = 'default') {
+        $code = htmlspecialchars($code, ENT_NOQUOTES);
+        return  self::_get_static_resources() . '<pre class="dump-code dump-code-responsive" data-language="' . $language . '" data-theme="' . $theme . '">' . $code . '</pre>';
+    }
+
+    /**
      * Clean a path, replacing the special folders defined in the config. E.g.:
      *         /home/project/www/index.php -> APP_PATH/index.php
      * @param string $path
@@ -423,7 +435,7 @@ abstract class Dump {
     }
 
     /**
-     * Read the source code from a file, centered in a line number and with a specific padding
+     * Read the source code from a file, centered in a line number, with a specific padding and apply a highlight it
      * @return string
      */
     private static function _get_source($file, $line_number, $padding = 10) {
@@ -448,7 +460,7 @@ abstract class Dump {
         // Close file
         fclose($file);
 
-        return '<pre class="php-code" from="' . $start . '" highlight="' . $line_number . '">' . implode('', $source) . '</pre>';
+        return '<pre class="dump-code" data-language="php" data-from="' . $start . '" data-highlight="' . $line_number . '" data-theme="graynight">' . implode('', $source) . '</pre>';
     }
 
     private static function _html_element($tag_name, $attributes, $content = NULL) {
@@ -547,6 +559,32 @@ if (!function_exists('dumpdie')) :
         //Exit
         die(1);
     }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
