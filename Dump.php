@@ -95,7 +95,7 @@ abstract class Dump {
         $html .= self::_html_element('div', array('class' => 'dump-main dump-pending'), array(
                     '<ul class="dump-node dump-firstnode"><li>' . implode('</li><li>', $inner) . '</li></ul>',
                     isset($step) && $show_caller ? self::_html_element('div', array('class' => 'dump-footer'), "$action from {$step['file']}, line {$step['line']}") : ''
-                ));
+        ));
         return $html;
     }
 
@@ -241,14 +241,11 @@ abstract class Dump {
                             //Build field
                             if ($property->isPublic()) {
                                 $value = $property->getValue($data);
-                            } elseif (strnatcmp(phpversion(), '5.3') >= 0) {
+                            } elseif (method_exists($property, 'setAccessible')) {
                                 $property->setAccessible(TRUE);
                                 $value = $property->getValue($data);
                             } else {
-                                //Hack for access private properties: http://derickrethans.nl/private-properties-exposed.html
-                                $propname = "\0" . get_class($data) . "\0{$property->name}";
-                                $a = (array) $data;
-                                $value = isset($a[$propname]) ? $a[$propname] : '?';
+                                $value = self::_get_private_data($data, $property->name, '?');
                             }
                             $inner_html[] = self::_render($property->name, $value, $level + 1, implode(', ', $meta));
                             $properties[] = $property->name;
@@ -291,6 +288,47 @@ abstract class Dump {
 
             return self::_render_item($name, $type, '', $metadata, $info, $inner_html);
         }
+    }
+
+    private static function _get_private_data($object, $property = NULL, $default = FALSE) {
+        //Try to get it using serialize()
+        $class_name = get_class($object);
+        $class_name_len = strlen($class_name);
+        $serialized = serialize($object);
+
+        if (preg_match('/' . preg_quote($class_name) . '.\:(\d+)/', $serialized, $match)) {
+            $prop_count = $match[1];
+        } else {
+            return $default;
+        }
+
+        $serialized_array = str_replace("O:$class_name_len:\"$class_name\":$prop_count:", "a:$prop_count:", $serialized);
+
+        if ($serialized == $serialized_array)
+            return $default;
+
+        $raw_data = unserialize($serialized_array);
+
+        if ($raw_data === FALSE)
+            return $default;
+
+        $data = array();
+        foreach ($raw_data as $key => $value) {
+            if (strpos($key, "\0*\0") === 0) {//Protected
+                $data[substr($key, 3)] = $value;
+            } else if (strpos($key, "\0$class_name\0") === 0) {//Private
+                $data[substr($key, strlen("\0$class_name\0"))] = $value;
+            } else {//Public
+                $data[$key] = $value;
+            }
+        }
+
+        return isset($property) ? (isset($data[$property]) ? $data[$property] : $default) : $data;
+
+        //Hack for access private properties: http://derickrethans.nl/private-properties-exposed.html
+        $propname = "\0" . get_class($data) . "\0{$property->name}";
+        $a = (array) $data;
+        $value = isset($a[$propname]) ? $a[$propname] : '?';
     }
 
     private static function _render_source_code($name, $value, $file = NULL, $line = NULL) {
@@ -406,7 +444,7 @@ abstract class Dump {
      */
     public static function source($code, $language = 'php', $theme = 'default') {
         $code = htmlspecialchars($code, ENT_NOQUOTES);
-        return  self::_get_static_resources() . '<pre class="dump-code dump-code-responsive" data-language="' . $language . '" data-theme="' . $theme . '">' . $code . '</pre>';
+        return self::_get_static_resources() . '<pre class="dump-code dump-code-responsive" data-language="' . $language . '" data-theme="' . $theme . '">' . $code . '</pre>';
     }
 
     /**
@@ -532,7 +570,7 @@ if (!function_exists('dump')
      * @code
      * function dump() {
      *      if (!class_exists('Dump', FALSE)) {
-     *          require SYSTEM_PATH . '/third_party/Dump.php';
+     *          require SYS_PATH . '/vendor/Dump.php';
      *          Dump::config(...);
      *      }
      *      call_user_func_array(array('Dump', 'show'), func_get_args());
@@ -559,6 +597,26 @@ if (!function_exists('dumpdie')) :
         //Exit
         die(1);
     }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
