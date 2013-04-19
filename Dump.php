@@ -221,6 +221,7 @@ abstract class Dump {
                 if (!($data instanceof stdClass) && class_exists('ReflectionClass', FALSE)) {
                     $current = new ReflectionClass($data);
                     $properties = array();
+                    $private_data = NULL;
                     while ($current !== FALSE) {
                         foreach ($current->getProperties() as $property) {
                             /* @var $property ReflectionProperty */
@@ -245,7 +246,9 @@ abstract class Dump {
                                 $property->setAccessible(TRUE);
                                 $value = $property->getValue($data);
                             } else {
-                                $value = self::_get_private_data($data, $property->name, '?');
+                                if (!isset($private_data))
+                                    $private_data = self::_get_private_data($data, NULL, array());
+                                $value = isset($private_data[$property->name]) ? $private_data[$property->name] : '?';
                             }
                             $inner_html[] = self::_render($property->name, $value, $level + 1, implode(', ', $meta));
                             $properties[] = $property->name;
@@ -597,6 +600,8 @@ if (!function_exists('dumpdie')) :
         //Exit
         die(1);
     }
+
+
 
 
 
