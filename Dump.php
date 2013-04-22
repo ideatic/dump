@@ -298,54 +298,51 @@ abstract class Dump {
         }
     }
 
-    private static function _get_private_data($object, $property = NULL, $default = FALSE) {
-        //Based on a hack to access private properties: http://derickrethans.nl/private-properties-exposed.html
-        $raw_data = (array) $object;
-        $data = array();
-        foreach ($raw_data as $key => $value) {
-            $pos = strrpos($key, "\0");
+    private static function _get_private_data($object, $default = FALSE) {
 
-            if ($pos !== FALSE)//Remove special names given by php ( "\0*\0" for protected fields, "\0$class_name\0" for private)
-                $key = substr($key, $pos + 1);
+        for ($method = 0; $method < 2; $method++) {
+            try {
+                $raw_data = FALSE;
+                if ($method == 0) {
+                    //Based on a hack to access private properties: http://derickrethans.nl/private-properties-exposed.html
+                    $raw_data = (array) $object;
+                } else if ($method == 1) {
+                    //Try to get it using serialize()
+                    $class_name = get_class($object);
+                    $serialized = serialize($object);
 
-            $data[$key] = $value;
-        }
+                    if (preg_match('/' . preg_quote($class_name) . '.\:(\d+)/', $serialized, $match)) {
+                        $prop_count = $match[1];
+                        $class_name_len = strlen($class_name);
 
-        if (!empty($data))
-            return $data;
+                        $serialized_array = str_replace("O:$class_name_len:\"$class_name\":$prop_count:", "a:$prop_count:", $serialized);
 
-        //Try to get it using serialize()
-        try {
-            $class_name = get_class($object);
-            $serialized = serialize($object);
-
-            if (preg_match('/' . preg_quote($class_name) . '.\:(\d+)/', $serialized, $match)) {
-                $prop_count = $match[1];
-                $class_name_len = strlen($class_name);
-
-                $serialized_array = str_replace("O:$class_name_len:\"$class_name\":$prop_count:", "a:$prop_count:", $serialized);
-
-                if ($serialized != $serialized_array) {
-                    $raw_data = unserialize($serialized_array);
-
-                    if ($raw_data !== FALSE) {
-                        $data = array();
-                        foreach ($raw_data as $key => $value) {
-                            $pos = strrpos($key, "\0");
-
-                            if ($pos !== FALSE)//Remove special names given by php serializer ( "\0*\0" for protected fields, "\0$class_name\0" for private)
-                                $key = substr($key, $pos + 1);
-
-                            $data[$key] = $value;
+                        if ($serialized != $serialized_array) {
+                            $raw_data = unserialize($serialized_array);
                         }
-
-                        return isset($property) ? (array_key_exists($property, $data) ? $data[$property] : $default) : $data;
                     }
                 }
+
+                if ($raw_data !== FALSE) {
+                    $data = array();
+                    foreach ($raw_data as $key => $value) {
+                        $pos = strrpos($key, "\0");
+
+                        if ($pos !== FALSE)//Remove special names given by php ( "\0*\0" for protected fields, "\0$class_name\0" for private)
+                            $key = substr($key, $pos + 1);
+
+                        $data[$key] = $value;
+                    }
+
+                    if (!empty($data))
+                        return $data;
+                }
+            } catch (Exception $err) {
+                
             }
-        } catch (Exception $err) {
-            return $default;
         }
+
+        return $default;
     }
 
     private static function _render_source_code($name, $value, $file = NULL, $line = NULL) {
@@ -614,6 +611,18 @@ if (!function_exists('dumpdie')) :
         //Exit
         die(1);
     }
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
