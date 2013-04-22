@@ -24,7 +24,7 @@ And then, for dump information about any variable, resource or exception you onl
 - Interactive dump of almost types of variables.
 - Source code viewer with syntax highlighting.
 - Object reflection.
-- String viewer in both plain and html mode.
+- String viewer with plain and html mode.
 - Comprehensive analysis of exceptions.
 - Dynamic overlay that floats over top of web page. 
 
