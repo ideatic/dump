@@ -21,6 +21,10 @@ function foo($a, $b) {
 }
 
 function baz($a, $b) {
+    echo '<h2>Class inhertance</h2>';
+    $foo = new Foo();
+    dump($foo);
+
     echo '<h2>PHP Global variables</h2>';
     dump($_SERVER, $_REQUEST);
 
@@ -31,7 +35,7 @@ function baz($a, $b) {
     dump(debug_backtrace());
 
     echo '<h2>Debug backtrace (processed)</h2>';
-    dump(Dump::analize_trace(debug_backtrace()));
+    dump(Dump::backtrace(debug_backtrace()));
 
     echo '<h2>Recursion</h2>';
     //array
@@ -42,6 +46,31 @@ function baz($a, $b) {
     $b->field = $b;
     $b->field->field = &$b;
     dump($a, $b);
+
+    echo '<h2>Test source code</h2>';
+    echo Dump::source(file_get_contents(__FILE__));
+}
+
+class Baz {
+
+    protected $primer_proc = 'hola';
+    private $other = 69;
+    public $publico = 'hehe';
+
+}
+
+class Foo extends Baz {
+
+    private $_handle;
+
+    public function __construct() {
+        $this->_handle = fopen(__FILE__, 'r');
+    }
+
+    protected $segundo_proc = 'adios';
+    private $other_priv = array();
+    public $Fooque = 'publico';
+
 }
 
 class DummyClass {
@@ -58,6 +87,6 @@ class DummyClass {
     </head>
     <body>
         <h1>Dump test</h1>
-<?php do_test(); ?>
+        <?php do_test(); ?>
     </body>
 </html>

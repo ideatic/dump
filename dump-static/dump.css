@@ -1,4 +1,4 @@
-.dump-main {
+.dump {
     background: url("overlay.gif") #222;
     border: 8px solid #000;
     color: #FFF;
@@ -13,17 +13,18 @@
     border-radius: 10px;
 }
 
-.dump-main .dump-item-header {
+.dump .dump-header {
     float: left;
     clear: both;
 }
 
-.dump-main .dump-item-content {
+.dump .dump-content {
     clear: both;
-
+    display:none;
+    margin-left: 15px;
 }
 
-.dump-main span {
+.dump span {
     display: inline;
 }
 
@@ -46,7 +47,7 @@ ul.dump-node li {
     padding: 0 !important;
 }
 
-.dump-main .dump-item-header {
+.dump .dump-header {
     padding: 2px 0 3px 20px;
     background-image: url("empty.gif");
     background-position: 6px center;
@@ -56,40 +57,36 @@ ul.dump-node li {
     text-overflow: ellipsis;
 }
 
-.dump-main .dump-item-collapsed {
+.dump .dump-collapsed {
     background-image: url("collapsed.gif");
     cursor: pointer;
 }
 
-.dump-main .dump-item-expanded {
+.dump .dump-expanded {
     background-image: url("expanded.gif");
 }
 
-.dump-main .dump-item-name {
+.dump .dump-name {
     color: #4a8fd9;
     font-weight: bold;
     margin-right: 5px;
 }
 
-.dump-main .dump-item-info {
+.dump .dump-info {
     color: #953FA1;
 }
 
-.dump-main .dump-item-value {
+.dump .dump-value {
     color: #FFFD70;
     margin-left: 5px;
 }
 
-.dump-main .dump-item-content {
-    margin-left: 15px;
-}
-
-.dump-main a{
+.dump a{
     color:#4a8fd9;
 }
 
-.dump-main a[target=_blank]{
-      background: url("external.png") no-repeat;
+.dump a[target=_blank]{
+    background: url("external.png") no-repeat;
     padding-left: 17px;
 }
 
@@ -118,18 +115,6 @@ ul.dump-node li {
 .dump-source {
     padding: 1em 0 1em 0;
     margin: 0;
-}
-
-.dump-source .edit-link {
-    color: #FFFD70;
-    display: block;
-    font-weight: bold;
-    margin: 0 0 10px 10px;
-    text-decoration: none;
-}
-
-.dump-source .edit-link:hover {
-    text-decoration: underline;
 }
 
 .dump-source .CodeMirror-scroll {
@@ -171,7 +156,7 @@ ul.dump-node li {
     padding-top: 5px;
 }
 /* Types */
-.dump-item-header.exception .dump-item-name {
+.dump-header.exception .dump-name {
     background: url("exception.png") no-repeat left center;
     color: #C83937;
     line-height: 25px;
@@ -191,7 +176,7 @@ ul.dump-node li {
     bottom: 5px;
 }
 
-.dump-main.overlay {
+.dump.overlay {
     z-index: 1101;
     position: absolute;
     opacity: 0;
@@ -204,7 +189,7 @@ ul.dump-node li {
     -webkit-box-shadow: 0 0 20px #000;
 }
 
-.dump-main.overlay .dump-expand {
+.dump.overlay .dump-expand {
     display: none; /* Hide expand button */
 }
 
@@ -222,7 +207,7 @@ ul.dump-node li {
     z-index: 1100;
 }
 
-.dump-main .dump-close {
+.dump .dump-close {
     width: 30px;
     height: 30px;
     cursor: pointer;
@@ -235,10 +220,10 @@ ul.dump-node li {
 
 /* Automatic height for CodeMirror */
 .CodeMirror {
-  height: auto;
+    height: auto;
 }
 .CodeMirror-scroll {
-  overflow-y: hidden;
-  overflow-x: auto;
-  height: auto;
+    overflow-y: hidden;
+    overflow-x: auto;
+    height: auto;
 }

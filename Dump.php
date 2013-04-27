@@ -89,21 +89,61 @@ abstract class Dump {
 
 
         //Generate HTML
-        $html = self::_get_static_resources();
+        $html = array('<div class="dump">');
 
+        //Loader
+        $html[] = self::_assets_loader('$(".dump").dump({static_url:"' . self::$_static_url . '"})');
 
-        $html .= self::_html_element('div', array('class' => 'dump-main dump-pending'), array(
-                    '<ul class="dump-node dump-firstnode"><li>' . implode('</li><li>', $inner) . '</li></ul>',
-                    isset($step) && $show_caller ? self::_html_element('div', array('class' => 'dump-footer'), "$action from {$step['file']}, line {$step['line']}") : ''
-        ));
-        return $html;
+        //Content
+        $html[] = '<ul class="dump-node dump-firstnode"><li>';
+        foreach ($inner as $item)
+            $html[] = $item;
+        $html[] = '</li></ul>';
+
+        //Footer
+        if (isset($step) && $show_caller)
+            $html[] = self::_html_element('div', array('class' => 'dump-footer'), "$action from {$step['file']}, line {$step['line']}");
+
+        $html[] = '</div>';
+        return implode('', $html);
     }
 
-    private static function _get_static_resources() {
-        return self::_html_element('script', array('type' => 'text/javascript'), 'var dump_static_url="' . self::$_static_url . '";') .
-                self::_html_element('script', array('type' => 'text/javascript'), 'window.jQuery || document.write(\'<script src="' . self::$_static_url . '/jquery.js' . '"><\/script>\')') .
-                self::_html_element('script', array('type' => 'text/javascript', 'src' => self::$_static_url . '/dump.js'), '') .
-                self::_html_element('style', array('type' => 'text/css'), ' @import url("' . self::$_static_url . '/dump.css");');
+    private static function _assets_loader($on_load = '') {
+        ob_start();
+        /* ?>
+          <script>
+          window.jQuery || document.write('<script src="<?php echo self::$_static_url ?>/jquery.js"><\/script>');
+          </script>
+          <script>
+          window.jQuery.fn.dump || (document.write('<script src="<?php echo self::$_static_url ?>/dump.js"><\/script>'), $("head").append($("<link rel='stylesheet' type='text/css' href='<?php echo self::$_static_url ?>/dump.css' />")));
+          </script>
+          <script>
+          window.jQuery(function() {
+          <?php echo $on_load ?>;
+          });
+          </script>
+          <noscript><style>@import url("<?php echo self::$_static_url ?>/dump.css");.dump-firstnode>li>.dump-content{display:block;}</style></noscript>
+          <?php */
+        ?>
+        <script>
+            window.jQuery || document.write('<script src="<?php echo self::$_static_url ?>/jquery.js"><\/script>');
+        </script>
+        <script>
+            window.jQuery.fn.dump ? window.jQuery(function() {
+        <?php echo $on_load ?>;
+            }) : (window.jQuery.ajax({dataType: "script",
+                cache: true,
+                url: "<?php echo self::$_static_url ?>/dump.js",
+                success: function() {
+                    window.jQuery(function() {
+        <?php echo $on_load ?>;
+                    });
+                }
+            }), $("head").append($("<link rel='stylesheet' type='text/css' href='<?php echo self::$_static_url ?>/dump.css' />")));
+        </script>
+        <noscript><style>@import url("<?php echo self::$_static_url ?>/dump.css");.dump-firstnode>li>.dump-content{display:block;}</style></noscript>
+        <?php
+        return ob_get_clean();
     }
 
     private static function _render($name, &$data, $level = 0, $metadata = NULL) {
@@ -144,21 +184,21 @@ abstract class Dump {
 
         $info = '';
         if (!empty($type)) {
-            $info .= self::_html_element('span', array('class' => 'dump-item-type'), !empty($metadata) ? "$metadata, $type" : $type);
+            $info .= self::_html_element('span', array('class' => 'dump-type'), !empty($metadata) ? "$metadata, $type" : $type);
         }
         if (!empty($extra_info)) {
             if (!empty($info))
                 $info .= ', ';
-            $info .= self::_html_element('span', array('class' => 'dump-item-info'), $extra_info);
+            $info .= self::_html_element('span', array('class' => 'dump-info'), $extra_info);
         }
 
-        $inner_html = empty($inner_html) ? '' : self::_html_element('div', array('class' => "dump-item-content $class", 'style' => 'display:none'), '<ul class="dump-node"><li>' . implode('</li><li>', (is_array($inner_html) ? $inner_html : array($inner_html))) . '</li></ul>');
+        $inner_html = empty($inner_html) ? '' : self::_html_element('div', array('class' => "dump-content $class"), '<ul class="dump-node"><li>' . implode('</li><li>', (is_array($inner_html) ? $inner_html : array($inner_html))) . '</li></ul>');
 
-        return self::_html_element('div', array('class' => "dump-item-header $class" . (empty($inner_html) ? '' : ' dump-item-collapsed')), array(
-                    array('span', array('class' => 'dump-item-name'), htmlspecialchars($name)),
+        return self::_html_element('div', array('class' => "dump-header $class" . (empty($inner_html) ? '' : ' dump-collapsed')), array(
+                    array('span', array('class' => 'dump-name'), htmlspecialchars($name)),
                     empty($info) ? '' : "($info)",
-                    // !empty($value) ? array('span', array('class' => 'dump-item-value'), htmlspecialchars($value)) : '',
-                    array('span', array('class' => 'dump-item-value'), htmlspecialchars($value)),
+                    // !empty($value) ? array('span', array('class' => 'dump-value'), htmlspecialchars($value)) : '',
+                    array('span', array('class' => 'dump-value'), htmlspecialchars($value)),
                 )) . $inner_html;
     }
 
@@ -458,7 +498,7 @@ abstract class Dump {
      */
     public static function source($code, $language = 'php', $theme = 'default') {
         $code = htmlspecialchars($code, ENT_NOQUOTES);
-        return self::_get_static_resources() . '<pre class="dump-code dump-code-responsive" data-language="' . $language . '" data-theme="' . $theme . '">' . $code . '</pre>';
+        return self::_assets_loader('$(".dump-code").dump({static_url:"' . self::$_static_url . '"})') . '<pre class="dump-code" data-language="' . $language . '" data-theme="' . $theme . '">' . $code . '</pre>';
     }
 
     /**
@@ -611,6 +651,38 @@ if (!function_exists('dumpdie')) :
         //Exit
         die(1);
     }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
