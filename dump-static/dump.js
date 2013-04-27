@@ -44,9 +44,9 @@
     };
 
     //Dump
-    $.fn.dump = function(settings) {
+   window.init_dump = function(element,settings) {
 
-        return this.each(function() {
+        return $(element).each(function() {
             initialize($(this), settings);
         });
 

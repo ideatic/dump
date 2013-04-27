@@ -26,7 +26,7 @@ function baz($a, $b) {
     dump($foo);
 
     echo '<h2>PHP Global variables</h2>';
-    dump($_SERVER, $_REQUEST);
+    dump(array('$_SERVER'=>$_SERVER, '$_REQUEST'=>$_REQUEST));
 
     echo '<h2>Exception</h2>';
     dump(new ErrorException('Dummy exception'));

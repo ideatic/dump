@@ -92,7 +92,7 @@ abstract class Dump {
         $html = array('<div class="dump">');
 
         //Loader
-        $html[] = self::_assets_loader('$(".dump").dump({static_url:"' . self::$_static_url . '"})');
+        $html[] = self::_assets_loader('init_dump($(".dump"),{static_url:"' . self::$_static_url . '"})');
 
         //Content
         $html[] = '<ul class="dump-node dump-firstnode"><li>';
@@ -110,26 +110,12 @@ abstract class Dump {
 
     private static function _assets_loader($on_load = '') {
         ob_start();
-        /* ?>
-          <script>
-          window.jQuery || document.write('<script src="<?php echo self::$_static_url ?>/jquery.js"><\/script>');
-          </script>
-          <script>
-          window.jQuery.fn.dump || (document.write('<script src="<?php echo self::$_static_url ?>/dump.js"><\/script>'), $("head").append($("<link rel='stylesheet' type='text/css' href='<?php echo self::$_static_url ?>/dump.css' />")));
-          </script>
-          <script>
-          window.jQuery(function() {
-          <?php echo $on_load ?>;
-          });
-          </script>
-          <noscript><style>@import url("<?php echo self::$_static_url ?>/dump.css");.dump-firstnode>li>.dump-content{display:block;}</style></noscript>
-          <?php */
         ?>
         <script>
             window.jQuery || document.write('<script src="<?php echo self::$_static_url ?>/jquery.js"><\/script>');
         </script>
         <script>
-            window.jQuery.fn.dump ? window.jQuery(function() {
+            window.init_dump ? window.jQuery(function() {
         <?php echo $on_load ?>;
             }) : (window.jQuery.ajax({dataType: "script",
                 cache: true,
@@ -498,7 +484,7 @@ abstract class Dump {
      */
     public static function source($code, $language = 'php', $theme = 'default') {
         $code = htmlspecialchars($code, ENT_NOQUOTES);
-        return self::_assets_loader('$(".dump-code").dump({static_url:"' . self::$_static_url . '"})') . '<pre class="dump-code" data-language="' . $language . '" data-theme="' . $theme . '">' . $code . '</pre>';
+        return self::_assets_loader('init_dump($(".dump-code"),{static_url:"' . self::$_static_url . '"})') . '<pre class="dump-code" data-language="' . $language . '" data-theme="' . $theme . '">' . $code . '</pre>';
     }
 
     /**
