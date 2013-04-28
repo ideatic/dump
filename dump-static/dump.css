@@ -117,13 +117,6 @@ ul.dump-node li {
     margin: 0;
 }
 
-.dump-source .CodeMirror-scroll {
-    height: auto;
-    overflow-y: hidden;
-    overflow-x: auto;
-    width: 100%;
-}
-
 .dump-source .activeline {
     background-color: #2C2C29 !important;
 }
@@ -226,4 +219,5 @@ ul.dump-node li {
     overflow-y: hidden;
     overflow-x: auto;
     height: auto;
+    height: auto !important;
 }

@@ -1,3 +1,5 @@
+var init_dump;
+
 (function($) {
     "use strict";
 
@@ -44,7 +46,7 @@
     };
 
     //Dump
-   window.init_dump = function(element,settings) {
+    init_dump = function(element, settings) {
 
         return $(element).each(function() {
             initialize($(this), settings);
@@ -207,6 +209,11 @@
 
         //Load Codemirror
         if (typeof CodeMirror !== 'function') {
+            $(document).on('codemirror_loaded', highlight_code);
+
+            if (window.loading_codemirror)
+                return;
+            window.loading_codemirror = true;
             $([
                 settings.static_url + "/CodeMirror/codemirror.css",
                 settings.static_url + "/CodeMirror/theme/graynight.css"
@@ -222,7 +229,9 @@
                 dataType: "script",
                 cache: true,
                 url: settings.static_url + "/CodeMirror/codemirror.js",
-                success: highlight_code
+                success: function() {
+                    $(document).trigger('codemirror_loaded');
+                }
             });
         } else {
             highlight_code();

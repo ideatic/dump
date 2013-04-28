@@ -125,7 +125,7 @@ abstract class Dump {
         <?php echo $on_load ?>;
                     });
                 }
-            }), $("head").append($("<link rel='stylesheet' type='text/css' href='<?php echo self::$_static_url ?>/dump.css' />")));
+            }), $("head").append($("<link rel='stylesheet' type='text/css' href='<?php echo self::$_static_url ?>/dump.css' />")), window.init_dump = 'loading');
         </script>
         <noscript><style>@import url("<?php echo self::$_static_url ?>/dump.css");.dump-firstnode>li>.dump-content{display:block;}</style></noscript>
         <?php
@@ -180,11 +180,11 @@ abstract class Dump {
 
         $inner_html = empty($inner_html) ? '' : self::_html_element('div', array('class' => "dump-content $class"), '<ul class="dump-node"><li>' . implode('</li><li>', (is_array($inner_html) ? $inner_html : array($inner_html))) . '</li></ul>');
 
-        return self::_html_element('div', array('class' => "dump-header $class" . (empty($inner_html) ? '' : ' dump-collapsed')), array(
+        return self::_html_element('div', array('class' => array('dump-header', $class, empty($inner_html) ? '' : ' dump-collapsed')), array(
                     array('span', array('class' => 'dump-name'), htmlspecialchars($name)),
                     empty($info) ? '' : "($info)",
                     // !empty($value) ? array('span', array('class' => 'dump-value'), htmlspecialchars($value)) : '',
-                    array('span', array('class' => 'dump-value'), htmlspecialchars($value)),
+                    empty($value) ? '' : array('span', array('class' => 'dump-value'), htmlspecialchars($value)),
                 )) . $inner_html;
     }
 
@@ -268,12 +268,12 @@ abstract class Dump {
                             //Build field
                             if ($property->isPublic()) {
                                 $value = $property->getValue($data);
-                            } elseif (method_exists($property, 'setAccessible')) {
+                            } else if (method_exists($property, 'setAccessible')) {
                                 $property->setAccessible(TRUE);
                                 $value = $property->getValue($data);
                             } else {
                                 if (!isset($private_data))//Initialize object private data
-                                    $private_data = self::_get_private_data($data, NULL, array());
+                                    $private_data = self::_get_private_data($data, array());
 
                                 if (array_key_exists($property->name, $private_data)) {
                                     $value = $private_data[$property->name];
@@ -325,7 +325,6 @@ abstract class Dump {
     }
 
     private static function _get_private_data($object, $default = FALSE) {
-
         for ($method = 0; $method < 2; $method++) {
             try {
                 $raw_data = FALSE;
@@ -513,7 +512,7 @@ abstract class Dump {
     }
 
     /**
-     * Read the source code from a file, centered in a line number, with a specific padding and apply a highlight it
+     * Read the source code from a file, centered in a line number, with a specific padding and applying a highlight
      * @return string
      */
     private static function _get_source($file, $line_number, $padding = 10) {
@@ -578,9 +577,9 @@ abstract class Dump {
             $atts = '';
             foreach ($attributes as $key => $val) {
                 if ($key == 'class' && is_array($val)) {
-                    $val = implode(' ', $val);
+                    $val = implode(' ', array_filter($val));
                 } elseif ($key == 'style' && is_array($val)) {
-                    $val = implode(';', $val);
+                    $val = implode(';', array_filter($val));
                 } elseif (is_bool($val)) {
                     // XHTML compatibility
                     if ($val) {
@@ -600,9 +599,7 @@ abstract class Dump {
 }
 
 //Define shortcuts
-
-if (!function_exists('dump')
-) :
+if (!function_exists('dump')) {
 
     /**
      * Echo information about the selected variable.
@@ -621,9 +618,9 @@ if (!function_exists('dump')
         call_user_func_array(array('Dump', 'show'), func_get_args());
     }
 
-endif;
+}
 
-if (!function_exists('dumpdie')) :
+if (!function_exists('dumpdie')) {
 
     function dumpdie() {
         //Clean all output buffers
@@ -638,176 +635,4 @@ if (!function_exists('dumpdie')) :
         die(1);
     }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-endif;
+}
