@@ -79,7 +79,7 @@ abstract class Dump {
                 $action = 'Called';
                 $trace = debug_backtrace();
                 while ($step = array_pop($trace)) {
-                    if ((strToLower($step['function']) == 'dump' || strToLower($step['function']) == 'dumpdie') || (isset($step['class']) && strToLower($step['class']) == 'dump')) {
+                    if (stripos($step['function'], 'dump') === 0 || (isset($step['class']) && strToLower($step['class']) == 'dump')) {
                         break;
                     }
                 }
@@ -96,13 +96,15 @@ abstract class Dump {
 
         //Content
         $html[] = '<ul class="dump-node dump-firstnode"><li>';
-        foreach ($inner as $item)
+        foreach ($inner as $item) {
             $html[] = $item;
+        }
         $html[] = '</li></ul>';
 
         //Footer
-        if (isset($step) && $show_caller)
+        if (isset($step) && $show_caller) {
             $html[] = self::_html_element('div', array('class' => 'dump-footer'), "$action from {$step['file']}, line {$step['line']}");
+        }
 
         $html[] = '</div>';
         return implode('', $html);
@@ -112,20 +114,23 @@ abstract class Dump {
         ob_start();
         ?>
         <script>
-            window.jQuery || document.write('<script src="<?php echo self::$_static_url ?>/jquery.js"><\/script>');
-        </script>
+                    window.jQuery || document.write('<script src="<?php echo self::$_static_url ?>/jquery.js"><\/script>');</script>
         <script>
-            window.init_dump ? window.jQuery(function() {
-        <?php echo $on_load ?>;
-            }) : (window.jQuery.ajax({dataType: "script",
-                cache: true,
-                url: "<?php echo self::$_static_url ?>/dump.js",
-                success: function() {
-                    window.jQuery(function() {
-        <?php echo $on_load ?>;
-                    });
-                }
-            }), $("head").append($("<link rel='stylesheet' type='text/css' href='<?php echo self::$_static_url ?>/dump.css' />")), window.init_dump = 'loading');
+            if (!window.init_dump) {
+                window.jQuery.ajax({dataType: "script",
+                    cache: true,
+                    url: "<?php echo self::$_static_url ?>/dump.js",
+                    success: function() {
+                        window.jQuery(function() {<?php echo $on_load ?>;
+                        });
+                    }
+                });
+                $("head").append($("<link rel='stylesheet' type='text/css' href='<?php echo self::$_static_url ?>/dump.css' />"));
+                window.init_dump = 'loading';
+            } else if (window.init_dump !== 'loading') {
+                window.jQuery(function() {<?php echo $on_load ?>;
+                });
+            }
         </script>
         <noscript><style>@import url("<?php echo self::$_static_url ?>/dump.css");.dump-firstnode>li>.dump-content{display:block;}</style></noscript>
         <?php
@@ -133,7 +138,10 @@ abstract class Dump {
     }
 
     private static function _render($name, &$data, $level = 0, $metadata = NULL) {
-        if ($data instanceof Exception) {
+        $memory_limit = self::_return_bytes(ini_get('memory_limit'));
+        if (memory_get_usage() > $memory_limit * 0.75) {
+            $render = self::_render_item($name, '&times;', 'Memory exhausted', $metadata);
+        } else if ($data instanceof Exception) {
             $render = self::_render_exception($data, TRUE, $level);
         } elseif (is_object($data)) {
             $render = self::_render_vars(TRUE, $name, $data, $level, $metadata);
@@ -148,7 +156,7 @@ abstract class Dump {
                 $html = self::_html_element('a', array('href' => "mailto:$data", 'target' => '_blank'), htmlspecialchars($data));
             else if (strpos($data, '<') !== FALSE || strlen($data) > 15) //Only expand if is a long text or HTML code
                 $html = self::_html_element('div', array('class' => 'dump-string'), htmlspecialchars($data));
-            $render = self::_render_item($name, 'String', $data, $metadata, strlen($data) . ' characters', isset($html) ? $html : '');
+            $render = self::_render_item($name, 'String', strlen($data) > 100 ? substr($data, 0, 100) . '...' : $data, $metadata, strlen($data) . ' characters', isset($html) ? $html : '');
         } elseif (is_float($data)) {
             $render = self::_render_item($name, 'Float', $data, $metadata);
         } elseif (is_integer($data)) {
@@ -161,7 +169,7 @@ abstract class Dump {
             $render = self::_render_item($name, '?', '<pre>' . print_r($data, TRUE) . '</pre>', $metadata);
         }
 
-        return $render;
+        return is_array($render) ? implode('', $render) : $render;
     }
 
     private static function _render_item($name, $type = '', $value = '', $metadata = '', $extra_info = '', $inner_html = NULL, $class = NULL) {
@@ -173,19 +181,38 @@ abstract class Dump {
             $info .= self::_html_element('span', array('class' => 'dump-type'), !empty($metadata) ? "$metadata, $type" : $type);
         }
         if (!empty($extra_info)) {
-            if (!empty($info))
+            if (!empty($info)) {
                 $info .= ', ';
+            }
             $info .= self::_html_element('span', array('class' => 'dump-info'), $extra_info);
         }
 
-        $inner_html = empty($inner_html) ? '' : self::_html_element('div', array('class' => "dump-content $class"), '<ul class="dump-node"><li>' . implode('</li><li>', (is_array($inner_html) ? $inner_html : array($inner_html))) . '</li></ul>');
-
-        return self::_html_element('div', array('class' => array('dump-header', $class, empty($inner_html) ? '' : ' dump-collapsed')), array(
+        $html = array();
+        $html[] = self::_html_element('div', array('class' => array('dump-header', $class, empty($inner_html) ? '' : ' dump-collapsed')), array(
                     array('span', array('class' => 'dump-name'), htmlspecialchars($name)),
-                    empty($info) ? '' : "($info)",
-                    // !empty($value) ? array('span', array('class' => 'dump-value'), htmlspecialchars($value)) : '',
-                    empty($value) ? '' : array('span', array('class' => 'dump-value'), htmlspecialchars($value)),
-                )) . $inner_html;
+                    empty($info) ? '' : " ($info)",
+                    ' ',
+                    array('span', array('class' => 'dump-value'), htmlspecialchars($value)),
+        ));
+
+        if (!empty($inner_html)) {
+            $html[] = "<div class=\"dump-content $class\"><ul class=\"dump-node\">";
+
+            if (!is_array($inner_html)) {
+                $inner_html = array($inner_html);
+            }
+
+            foreach ($inner_html as $item) {
+                $html[] = '<li>';
+                $html[] = $item;
+                $html[] = '</li>';
+            }
+
+            $html[] = "</ul></div>";
+        }
+
+        unset($inner_html); //free memory
+        return implode('', $html);
     }
 
     private static function _render_exception(Exception &$e, $show_location = TRUE, $level = 0) {
@@ -197,8 +224,8 @@ abstract class Dump {
         $name = get_class($e);
 
         //Basic info about the exception
-        $message = $e->getMessage();
-        $inner[] = self::_html_element('div', array('class' => 'dump-exception'), $e->getMessage());
+        $message = self::clean_path($e->getMessage());
+        $inner[] = self::_html_element('div', array('class' => 'dump-exception'), htmlspecialchars($message));
 
         //Source code
         foreach ($analized_trace as $step) {
@@ -299,7 +326,7 @@ abstract class Dump {
                 foreach ($data as $key => &$value) {
                     if ($is_backtrace && $key == 'source' && is_string($value) && !empty($value)) {
                         $inner_html[] = self::_render_source_code($key, $value, $data['file'], $data['line']);
-                    } else {
+                    } else if (!$is_backtrace || !in_array($key, array('function', 'file', 'line'))) {
                         $inner_html[] = self::_render($key, $value, $level + 1);
                     }
                 }
@@ -372,7 +399,7 @@ abstract class Dump {
 
     private static function _render_source_code($name, $value, $file = NULL, $line = NULL) {
         $edit_link = '';
-        return self::_render_item($name, '', '', '', '', self::_html_element('div', array('class' => 'dump-source'), $edit_link . $value));
+        return self::_render_item($name, '', "$file:$line", '', '', self::_html_element('div', array('class' => 'dump-source'), $edit_link . $value));
     }
 
     /**
@@ -398,7 +425,7 @@ abstract class Dump {
         $output = array();
         foreach ($trace as $i => $step) {
             //Get data from the current step
-            foreach (array('class', 'type', 'function', 'file', 'line', 'args') as $param) {
+            foreach (array('class', 'type', 'function', 'file', 'line', 'args', 'object') as $param) {
                 $$param = isset($step[$param]) ? $step[$param] : NULL;
             }
 
@@ -438,14 +465,21 @@ abstract class Dump {
                     }
                 }
             }
-
-            $output[] = array(
+            $info = array(
                 'function' => $function_call,
                 'args' => $function_args,
                 'file' => self::clean_path($file),
                 'line' => $line,
                 'source' => $source,
             );
+
+            if (isset($object)) {
+                $info = array(
+                    'object' => $object
+                        ) + $info;
+            }
+
+            $output[] = $info;
         }
         return $output;
     }
@@ -481,9 +515,19 @@ abstract class Dump {
      * @param string $language
      * @return string
      */
-    public static function source($code, $language = 'php', $theme = 'default') {
+    public static function source($code, $language = 'php', $editable = FALSE, $theme = 'default') {
         $code = htmlspecialchars($code, ENT_NOQUOTES);
-        return self::_assets_loader('init_dump($(".dump-code"),{static_url:"' . self::$_static_url . '"})') . '<pre class="dump-code" data-language="' . $language . '" data-theme="' . $theme . '">' . $code . '</pre>';
+        $extra = '';
+        $tag = 'pre';
+        if ($editable) {
+            $extra = 'data-editable="true"';
+            if (is_string($editable)) {
+                $tag = "textarea name=\"$editable\"";
+            } else {
+                $tag = 'textarea';
+            }
+        }
+        return self::_assets_loader('init_dump($(".dump-code"),{static_url:"' . self::$_static_url . '"})') . "<$tag class=\"dump-code\" data-language=\"$language\" data-theme=\"$theme\" $extra>$code</$tag>";
     }
 
     /**
@@ -538,6 +582,27 @@ abstract class Dump {
         fclose($file);
 
         return '<pre class="dump-code" data-language="php" data-from="' . $start . '" data-highlight="' . $line_number . '" data-theme="graynight">' . implode('', $source) . '</pre>';
+    }
+
+    /**
+     * Convert PHP config size to bytes (11M -> 11*1024*1024)
+     * @param type $val
+     * @return int
+     */
+    private static function _return_bytes($val) {
+        $val = trim($val);
+        $last = strtolower($val[strlen($val) - 1]);
+        switch ($last) {
+            // The 'G' modifier is available since PHP 5.1.0
+            case 'g':
+                $val *= 1024;
+            case 'm':
+                $val *= 1024;
+            case 'k':
+                $val *= 1024;
+        }
+
+        return $val;
     }
 
     private static function _html_element($tag_name, $attributes, $content = NULL) {
