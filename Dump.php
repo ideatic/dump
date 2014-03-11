@@ -114,7 +114,7 @@ abstract class Dump {
         ob_start();
         ?>
         <script>
-                    window.jQuery || document.write('<script src="<?php echo self::$_static_url ?>/jquery.js"><\/script>');</script>
+            window.jQuery || document.write('<script src="<?php echo self::$_static_url ?>/jquery.js"><\/script>');</script>
         <script>
             if (!window.init_dump) {
                 window.jQuery.ajax({dataType: "script",
@@ -271,26 +271,31 @@ abstract class Dump {
             $inner_html = array();
             if ($is_object) {
                 $properties_count = 0;
+                $properties = array();
                 if (!($data instanceof stdClass) && class_exists('ReflectionClass', FALSE)) {
                     $current = new ReflectionClass($data);
-                    $properties = array();
                     $private_data = NULL;
                     while ($current !== FALSE) {
                         foreach ($current->getProperties() as $property) {
                             /* @var $property ReflectionProperty */
-                            if (in_array($property->name, $properties))
+                            if (in_array($property->name, $properties)) {
                                 continue;
+                            }
 
                             //Get metadata
                             $meta = array();
-                            if ($property->isStatic())
+                            if ($property->isStatic()) {
                                 $meta[] = 'Static';
-                            if ($property->isPrivate())
+                            }
+                            if ($property->isPrivate()) {
                                 $meta[] = 'Private';
-                            if ($property->isProtected())
+                            }
+                            if ($property->isProtected()) {
                                 $meta[] = 'Protected';
-                            if ($property->isPublic())
+                            }
+                            if ($property->isPublic()) {
                                 $meta[] = 'Public';
+                            }
 
                             //Build field
                             if ($property->isPublic()) {
@@ -299,8 +304,9 @@ abstract class Dump {
                                 $property->setAccessible(TRUE);
                                 $value = $property->getValue($data);
                             } else {
-                                if (!isset($private_data))//Initialize object private data
+                                if (!isset($private_data)) {//Initialize object private data
                                     $private_data = self::_get_private_data($data, array());
+                                }
 
                                 if (array_key_exists($property->name, $private_data)) {
                                     $value = $private_data[$property->name];
@@ -314,13 +320,18 @@ abstract class Dump {
                         $current = $current->getParentClass();
                         $properties_count = count($properties);
                     }
-                } else {
-                    $properties = get_object_vars($data);
-                    foreach ($properties as $key => &$value) {
-                        $inner_html[] = self::_render($key, $value, $level + 1);
-                        $properties_count++;
-                    }
                 }
+                
+                //Find runtime properties
+                foreach (get_object_vars($data) as $key => &$value) {
+                    if (in_array($key, $properties)) {
+                        continue;
+                    }
+
+                    $inner_html[] = self::_render($key, $value, $level + 1);
+                    $properties_count++;
+                }
+
                 self::$_recursion_objects[] = $data;
             } else { //Array
                 foreach ($data as $key => &$value) {

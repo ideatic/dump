@@ -4,6 +4,8 @@
     color: #FFF;
     font-family: "Consolas", "Courier New", "Lucida Console", monospace;
     font-size: 12px;
+    line-height: 1;
+    white-space: normal;
     padding: 5px;
     margin: 5px;
     position: relative;
