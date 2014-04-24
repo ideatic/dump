@@ -5,14 +5,16 @@
  * Inspired in Krumo by mrasnika (http://krumo.sourceforge.net/)
  * @author Javier Marín (https://github.com/javiermarinros)
  */
-abstract class Dump {
+abstract class Dump
+{
 
     private static $_static_url = '/dump-static';
     private static $_special_paths = array();
     private static $_nesting_level = 5;
     private static $_recursion_objects;
 
-    public static function config($static_url = '/dump-static', $special_paths = array(), $nesting_level = 5) {
+    public static function config($static_url = '/dump-static', $special_paths = array(), $nesting_level = 5)
+    {
         self::$_static_url = $static_url;
         self::$_special_paths = $special_paths;
         self::$_nesting_level = $nesting_level;
@@ -20,32 +22,39 @@ abstract class Dump {
 
     /**
      * Display information about one or more PHP variables
+     *
      * @param mixed $var
      */
-    public static function show() {
+    public static function show()
+    {
         $data = func_get_args();
-        echo self::render_data($data, NULL, TRUE);
+        echo self::render_data($data, null, true);
     }
 
     /**
      * Gets information about one or more PHP variables and return it in HTML code
+     *
      * @param mixed $var
+     *
      * @return string
      */
-    public static function render() {
+    public static function render()
+    {
         $data = func_get_args();
-        return self::render_data($data, NULL, TRUE);
+        return self::render_data($data, null, true);
     }
 
     /**
      * Gets information about one or more PHP variables and return it in HTML code.
+     *
      * @param mixed $name Name of the analyzed var, or dictionary with several vars and names
      * @param mixed $value
-     * @param bool $show_caller
+     * @param bool  $show_caller
+     *
      * @return string
      */
-    public static function render_data($name, $value = NULL, $show_caller = TRUE) {
-
+    public static function render_data($name, $value = null, $show_caller = true)
+    {
         //Prepare data
         if (is_array($name)) {
             $data = $name;
@@ -56,10 +65,10 @@ abstract class Dump {
         //Render data
         if (count($data) == 1 && ($e = reset($data)) instanceof Exception) {
             self::$_recursion_objects = array();
-            $inner = array(self::_render_exception($e, FALSE));
+            $inner = array(self::_render_exception($e, false));
 
             //Caller info
-            $show_caller = TRUE;
+            $show_caller = true;
             $action = 'Thrown';
             $step['file'] = self::clean_path($e->getFile());
             $step['line'] = $e->getLine();
@@ -70,7 +79,7 @@ abstract class Dump {
 
                 $inner[] = self::_render(empty($name) || is_numeric($name) ? '...' : $name, $value);
 
-                self::$_recursion_objects = NULL;
+                self::$_recursion_objects = null;
             }
 
             //Caller info
@@ -79,7 +88,9 @@ abstract class Dump {
                 $action = 'Called';
                 $trace = debug_backtrace();
                 while ($step = array_pop($trace)) {
-                    if (stripos($step['function'], 'dump') === 0 || (isset($step['class']) && strToLower($step['class']) == 'dump')) {
+                    if (stripos($step['function'], 'dump') === 0 ||
+                        (isset($step['class']) && strToLower($step['class']) == 'dump')
+                    ) {
                         break;
                     }
                 }
@@ -103,82 +114,145 @@ abstract class Dump {
 
         //Footer
         if (isset($step) && $show_caller) {
-            $html[] = self::_html_element('div', array('class' => 'dump-footer'), "$action from {$step['file']}, line {$step['line']}");
+            $html[] = self::_html_element(
+                          'div',
+                              array('class' => 'dump-footer'),
+                              "$action from {$step['file']}, line {$step['line']}"
+            );
         }
 
         $html[] = '</div>';
         return implode('', $html);
     }
 
-    private static function _assets_loader($on_load = '') {
+    private static function _assets_loader($on_load = '')
+    {
         ob_start();
         ?>
         <script>
             window.jQuery || document.write('<script src="<?php echo self::$_static_url ?>/jquery.js"><\/script>');</script>
         <script>
-            if (!window.init_dump) {
-                window.jQuery.ajax({dataType: "script",
-                    cache: true,
-                    url: "<?php echo self::$_static_url ?>/dump.js",
-                    success: function() {
-                        window.jQuery(function() {<?php echo $on_load ?>;
-                        });
+            var _dumpq = _dumpq || [];
+            _dumpq.push(function () {
+                <?php echo $on_load ?>;
+            });
+            (function ($, init) {
+                var loadq = function () {
+                    while ((i = _dumpq.shift()) !== undefined) {
+                        i();
                     }
-                });
-                $("head").append($("<link rel='stylesheet' type='text/css' href='<?php echo self::$_static_url ?>/dump.css' />"));
-                window.init_dump = 'loading';
-            } else if (window.init_dump !== 'loading') {
-                window.jQuery(function() {<?php echo $on_load ?>;
-                });
-            }
+                };
+
+                if (!init) {
+                    $.getScript("<?php echo self::$_static_url ?>/dump.js", loadq);
+                    $("head").append($("<link rel='stylesheet' type='text/css' href='<?php echo self::$_static_url ?>/dump.css' />"));
+                    init = 'loading';
+                } else if (init !== 'loading') {
+                    loadq();
+                }
+            })(window.jQuery, window.init_dump);
         </script>
-        <noscript><style>@import url("<?php echo self::$_static_url ?>/dump.css");.dump-firstnode>li>.dump-content{display:block;}</style></noscript>
+        <noscript>
+            <style>@import url("<?php echo self::$_static_url ?>/dump.css");
+
+                .dump-firstnode > li > .dump-content {
+                    display: block;
+                }</style>
+        </noscript>
         <?php
         return ob_get_clean();
     }
 
-    private static function _render($name, &$data, $level = 0, $metadata = NULL) {
+    private static function _render($name, &$data, $level = 0, $metadata = null)
+    {
         $memory_limit = self::_return_bytes(ini_get('memory_limit'));
         if (memory_get_usage() > $memory_limit * 0.75) {
             $render = self::_render_item($name, '&times;', 'Memory exhausted', $metadata);
-        } else if ($data instanceof Exception) {
-            $render = self::_render_exception($data, TRUE, $level);
-        } elseif (is_object($data)) {
-            $render = self::_render_vars(TRUE, $name, $data, $level, $metadata);
-        } elseif (is_array($data)) {
-            $render = self::_render_vars(FALSE, $name, $data, $level, $metadata);
-        } elseif (is_resource($data)) {
-            $render = self::_render_item($name, 'Resource', get_resource_type($data), $metadata);
-        } elseif (is_string($data)) {
-            if (preg_match('#^(\w+):\/\/([\w@][\w.:@]+)\/?[\w\.?=%&=\-@/$,]*$#', $data))//URL
-                $html = self::_html_element('a', array('href' => $data, 'target' => '_blank'), htmlspecialchars($data));
-            else if (preg_match('#^([a-zA-Z0-9_\-\.]+)@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.)|(([a-zA-Z0-9\-]+\.)+))([a-zA-Z]{2,4}|[0-9]{1,3})$#', $data))//Email
-                $html = self::_html_element('a', array('href' => "mailto:$data", 'target' => '_blank'), htmlspecialchars($data));
-            else if (strpos($data, '<') !== FALSE || strlen($data) > 15) //Only expand if is a long text or HTML code
-                $html = self::_html_element('div', array('class' => 'dump-string'), htmlspecialchars($data));
-            $render = self::_render_item($name, 'String', strlen($data) > 100 ? substr($data, 0, 100) . '...' : $data, $metadata, strlen($data) . ' characters', isset($html) ? $html : '');
-        } elseif (is_float($data)) {
-            $render = self::_render_item($name, 'Float', $data, $metadata);
-        } elseif (is_integer($data)) {
-            $render = self::_render_item($name, 'Integer', $data, $metadata);
-        } elseif (is_bool($data)) {
-            $render = self::_render_item($name, 'Boolean', $data ? 'TRUE' : 'FALSE', $metadata);
-        } elseif (is_null($data)) {
-            $render = self::_render_item($name, 'NULL', NULL, $metadata);
         } else {
-            $render = self::_render_item($name, '?', '<pre>' . print_r($data, TRUE) . '</pre>', $metadata);
+            if ($data instanceof Exception) {
+                $render = self::_render_exception($data, true, $level);
+            } elseif (is_object($data)) {
+                $render = self::_render_vars(true, $name, $data, $level, $metadata);
+            } elseif (is_array($data)) {
+                $render = self::_render_vars(false, $name, $data, $level, $metadata);
+            } elseif (is_resource($data)) {
+                $render = self::_render_item($name, 'Resource', get_resource_type($data), $metadata);
+            } elseif (is_string($data)) {
+                if (preg_match('#^(\w+):\/\/([\w@][\w.:@]+)\/?[\w\.?=%&=\-@/$,]*$#', $data)) //URL
+                {
+                    $html = self::_html_element(
+                                'a',
+                                    array('href' => $data, 'target' => '_blank'),
+                                    htmlspecialchars($data)
+                    );
+                } else {
+                    if (preg_match(
+                        '#^([a-zA-Z0-9_\-\.]+)@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.)|(([a-zA-Z0-9\-]+\.)+))([a-zA-Z]{2,4}|[0-9]{1,3})$#',
+                        $data
+                    )
+                    ) //Email
+                    {
+                        $html = self::_html_element(
+                                    'a',
+                                        array('href' => "mailto:$data", 'target' => '_blank'),
+                                        htmlspecialchars($data)
+                        );
+                    } else {
+                        if (strpos($data, '<') !== false || strlen($data) > 15
+                        ) //Only expand if is a long text or HTML code
+                        {
+                            $html = self::_html_element(
+                                        'div',
+                                            array('class' => 'dump-string'),
+                                            htmlspecialchars($data)
+                            );
+                        }
+                    }
+                }
+                $render = self::_render_item(
+                              $name,
+                                  'String',
+                                  strlen($data) > 100 ? substr($data, 0, 100) . '...' : $data,
+                                  $metadata,
+                                  strlen($data) . ' characters',
+                                  isset($html) ? $html : ''
+                );
+            } elseif (is_float($data)) {
+                $render = self::_render_item($name, 'Float', $data, $metadata);
+            } elseif (is_integer($data)) {
+                $render = self::_render_item($name, 'Integer', $data, $metadata);
+            } elseif (is_bool($data)) {
+                $render = self::_render_item($name, 'Boolean', $data ? 'TRUE' : 'FALSE', $metadata);
+            } elseif (is_null($data)) {
+                $render = self::_render_item($name, 'NULL', null, $metadata);
+            } else {
+                $render = self::_render_item($name, '?', '<pre>' . print_r($data, true) . '</pre>', $metadata);
+            }
         }
 
         return is_array($render) ? implode('', $render) : $render;
     }
 
-    private static function _render_item($name, $type = '', $value = '', $metadata = '', $extra_info = '', $inner_html = NULL, $class = NULL) {
-        if (!isset($class))
+    private static function _render_item(
+        $name,
+        $type = '',
+        $value = '',
+        $metadata = '',
+        $extra_info = '',
+        $inner_html = null,
+        $class = null
+    ) {
+        if (!isset($class)) {
             $class = strtolower($type);
+        }
 
         $info = '';
         if (!empty($type)) {
-            $info .= self::_html_element('span', array('class' => 'dump-type'), !empty($metadata) ? "$metadata, $type" : $type);
+            $info .= self::_html_element(
+                         'span',
+                             array('class' => 'dump-type'),
+                             !empty($metadata) ? "$metadata, $type" : $type
+            );
         }
         if (!empty($extra_info)) {
             if (!empty($info)) {
@@ -188,12 +262,16 @@ abstract class Dump {
         }
 
         $html = array();
-        $html[] = self::_html_element('div', array('class' => array('dump-header', $class, empty($inner_html) ? '' : ' dump-collapsed')), array(
-                    array('span', array('class' => 'dump-name'), htmlspecialchars($name)),
-                    empty($info) ? '' : " ($info)",
-                    ' ',
-                    array('span', array('class' => 'dump-value'), htmlspecialchars($value)),
-        ));
+        $html[] = self::_html_element(
+                      'div',
+                          array('class' => array('dump-header', $class, empty($inner_html) ? '' : ' dump-collapsed')),
+                          array(
+                              array('span', array('class' => 'dump-name'), htmlspecialchars($name)),
+                              empty($info) ? '' : " ($info)",
+                              ' ',
+                              array('span', array('class' => 'dump-value'), htmlspecialchars($value)),
+                          )
+        );
 
         if (!empty($inner_html)) {
             $html[] = "<div class=\"dump-content $class\"><ul class=\"dump-node\">";
@@ -215,7 +293,8 @@ abstract class Dump {
         return implode('', $html);
     }
 
-    private static function _render_exception(Exception &$e, $show_location = TRUE, $level = 0) {
+    private static function _render_exception(Exception &$e, $show_location = true, $level = 0)
+    {
         $inner = array();
         $analized_trace = self::backtrace($e->getTrace());
         $path = self::clean_path($e->getFile());
@@ -252,30 +331,39 @@ abstract class Dump {
         }
 
         //Fields
-        $inner[] = self::_render_vars(TRUE, 'Fields', $e, $level);
+        $inner[] = self::_render_vars(true, 'Fields', $e, $level);
 
         //Backtrace
-        $inner[] = self::_render_vars(FALSE, 'Backtrace', $analized_trace, $level);
+        $inner[] = self::_render_vars(false, 'Backtrace', $analized_trace, $level);
 
-        return self::_render_item($name, $show_location ? ($path . ':' . $e->getLine()) : '', strip_tags($message), '', '', $inner, 'exception');
+        return self::_render_item(
+                   $name,
+                       $show_location ? ($path . ':' . $e->getLine()) : '',
+                       strip_tags($message),
+                       '',
+                       '',
+                       $inner,
+                       'exception'
+        );
     }
 
-    private static function _render_vars($is_object, $name, &$data, $level = 0, $metadata = '') {
+    private static function _render_vars($is_object, $name, &$data, $level = 0, $metadata = '')
+    {
         //"Patch" to detect if the current array is a backtrace
         $is_backtrace = !$is_object && isset($data['function']) && is_string($data['function']) &&
-                isset($data['file']) && is_string($data['file']);
+                        isset($data['file']) && is_string($data['file']);
 
-        $recursive = $level > 4 && $is_object && in_array($data, self::$_recursion_objects, TRUE);
+        $recursive = $level > 4 && $is_object && in_array($data, self::$_recursion_objects, true);
         if ($level < self::$_nesting_level && !$recursive) {
             //Render subitems
             $inner_html = array();
             if ($is_object) {
                 $properties_count = 0;
                 $properties = array();
-                if (!($data instanceof stdClass) && class_exists('ReflectionClass', FALSE)) {
+                if (!($data instanceof stdClass) && class_exists('ReflectionClass', false)) {
                     $current = new ReflectionClass($data);
-                    $private_data = NULL;
-                    while ($current !== FALSE) {
+                    $private_data = null;
+                    while ($current !== false) {
                         foreach ($current->getProperties() as $property) {
                             /* @var $property ReflectionProperty */
                             if (in_array($property->name, $properties)) {
@@ -300,18 +388,20 @@ abstract class Dump {
                             //Build field
                             if ($property->isPublic()) {
                                 $value = $property->getValue($data);
-                            } else if (method_exists($property, 'setAccessible')) {
-                                $property->setAccessible(TRUE);
-                                $value = $property->getValue($data);
                             } else {
-                                if (!isset($private_data)) {//Initialize object private data
-                                    $private_data = self::_get_private_data($data, array());
-                                }
-
-                                if (array_key_exists($property->name, $private_data)) {
-                                    $value = $private_data[$property->name];
+                                if (method_exists($property, 'setAccessible')) {
+                                    $property->setAccessible(true);
+                                    $value = $property->getValue($data);
                                 } else {
-                                    $value = '?';
+                                    if (!isset($private_data)) { //Initialize object private data
+                                        $private_data = self::_get_private_data($data, array());
+                                    }
+
+                                    if (array_key_exists($property->name, $private_data)) {
+                                        $value = $private_data[$property->name];
+                                    } else {
+                                        $value = '?';
+                                    }
                                 }
                             }
                             $inner_html[] = self::_render($property->name, $value, $level + 1, implode(', ', $meta));
@@ -321,9 +411,9 @@ abstract class Dump {
                         $properties_count = count($properties);
                     }
                 }
-                
+
                 //Find runtime properties
-                foreach (get_object_vars($data) as $key => &$value) {
+                foreach (get_object_vars($data) as $key => $value) {
                     if (in_array($key, $properties)) {
                         continue;
                     }
@@ -337,8 +427,10 @@ abstract class Dump {
                 foreach ($data as $key => &$value) {
                     if ($is_backtrace && $key == 'source' && is_string($value) && !empty($value)) {
                         $inner_html[] = self::_render_source_code($key, $value, $data['file'], $data['line']);
-                    } else if (!$is_backtrace || !in_array($key, array('function', 'file', 'line'))) {
-                        $inner_html[] = self::_render($key, $value, $level + 1);
+                    } else {
+                        if (!$is_backtrace || !in_array($key, array('function', 'file', 'line'))) {
+                            $inner_html[] = self::_render($key, $value, $level + 1);
+                        }
                     }
                 }
             }
@@ -348,7 +440,14 @@ abstract class Dump {
 
         //Render item
         if ($is_object) {
-            return self::_render_item($name, 'Object', get_class($data), $metadata, isset($properties_count) ? "$properties_count fields" : '', $inner_html);
+            return self::_render_item(
+                       $name,
+                           'Object',
+                           get_class($data),
+                           $metadata,
+                           isset($properties_count) ? "$properties_count fields" : '',
+                           $inner_html
+            );
         } else {
             if ($is_backtrace) {
                 $type = $data['function'];
@@ -362,55 +461,74 @@ abstract class Dump {
         }
     }
 
-    private static function _get_private_data($object, $default = FALSE) {
+    private static function _get_private_data($object, $default = false)
+    {
         for ($method = 0; $method < 2; $method++) {
             try {
-                $raw_data = FALSE;
+                $raw_data = false;
                 if ($method == 0) {
                     //Based on a hack to access private properties: http://derickrethans.nl/private-properties-exposed.html
-                    $raw_data = (array) $object;
-                } else if ($method == 1) {
-                    //Try to get it using serialize()
-                    $class_name = get_class($object);
-                    $serialized = serialize($object);
+                    $raw_data = (array)$object;
+                } else {
+                    if ($method == 1) {
+                        //Try to get it using serialize()
+                        $class_name = get_class($object);
+                        $serialized = serialize($object);
 
-                    if (preg_match('/' . preg_quote($class_name) . '.\:(\d+)/', $serialized, $match)) {
-                        $prop_count = $match[1];
-                        $class_name_len = strlen($class_name);
+                        if (preg_match('/' . preg_quote($class_name) . '.\:(\d+)/', $serialized, $match)) {
+                            $prop_count = $match[1];
+                            $class_name_len = strlen($class_name);
 
-                        $serialized_array = str_replace("O:$class_name_len:\"$class_name\":$prop_count:", "a:$prop_count:", $serialized);
+                            $serialized_array = str_replace(
+                                "O:$class_name_len:\"$class_name\":$prop_count:",
+                                "a:$prop_count:",
+                                $serialized
+                            );
 
-                        if ($serialized != $serialized_array) {
-                            $raw_data = unserialize($serialized_array);
+                            if ($serialized != $serialized_array) {
+                                $raw_data = unserialize($serialized_array);
+                            }
                         }
                     }
                 }
 
-                if ($raw_data !== FALSE) {
+                if ($raw_data !== false) {
                     $data = array();
                     foreach ($raw_data as $key => $value) {
                         $pos = strrpos($key, "\0");
 
-                        if ($pos !== FALSE)//Remove special names given by php ( "\0*\0" for protected fields, "\0$class_name\0" for private)
+                        if ($pos !== false
+                        ) //Remove special names given by php ( "\0*\0" for protected fields, "\0$class_name\0" for private)
+                        {
                             $key = substr($key, $pos + 1);
+                        }
 
                         $data[$key] = $value;
                     }
 
-                    if (!empty($data))
+                    if (!empty($data)) {
                         return $data;
+                    }
                 }
             } catch (Exception $err) {
-                
+
             }
         }
 
         return $default;
     }
 
-    private static function _render_source_code($name, $value, $file = NULL, $line = NULL) {
+    private static function _render_source_code($name, $value, $file = null, $line = null)
+    {
         $edit_link = '';
-        return self::_render_item($name, '', "$file:$line", '', '', self::_html_element('div', array('class' => 'dump-source'), $edit_link . $value));
+        return self::_render_item(
+                   $name,
+                       '',
+                       "$file:$line",
+                       '',
+                       '',
+                       self::_html_element('div', array('class' => 'dump-source'), $edit_link . $value)
+        );
     }
 
     /**
@@ -422,11 +540,14 @@ abstract class Dump {
      * 'file': file where the call occurs
      * 'line': line of the file where the call occurs
      * 'source': source code where the call comes (in HTML format)
+     *
      * @param array $ call stack trace to be analyzed, if not use this parameter indicates the call stack before the function
+     *
      * @return array
      */
-    public static function backtrace(array $trace = NULL) {
-        if ($trace === NULL) {
+    public static function backtrace(array $trace = null)
+    {
+        if ($trace === null) {
             $trace = debug_backtrace();
         }
 
@@ -437,7 +558,7 @@ abstract class Dump {
         foreach ($trace as $i => $step) {
             //Get data from the current step
             foreach (array('class', 'type', 'function', 'file', 'line', 'args', 'object') as $param) {
-                $$param = isset($step[$param]) ? $step[$param] : NULL;
+                $$param = isset($step[$param]) ? $step[$param] : null;
             }
 
             //Source code of the call to this step
@@ -454,15 +575,20 @@ abstract class Dump {
                 if (in_array($function, $special_functions)) {
                     $function_args = array(self::clean_path($args[0]));
                 } else {
-                    if (!function_exists($function) || strpos($function, '{closure}') !== FALSE) {
-                        $params = NULL;
-                    } else if (class_exists('ReflectionMethod', FALSE)) {
-                        if (isset($class)) {
-                            $reflection = new ReflectionMethod($class, method_exists($class, $function) ? $function : '__call');
-                        } else {
-                            $reflection = new ReflectionFunction($function);
+                    if (!function_exists($function) || strpos($function, '{closure}') !== false) {
+                        $params = null;
+                    } else {
+                        if (class_exists('ReflectionMethod', false)) {
+                            if (isset($class)) {
+                                $reflection = new ReflectionMethod($class, method_exists(
+                                    $class,
+                                    $function
+                                ) ? $function : '__call');
+                            } else {
+                                $reflection = new ReflectionFunction($function);
+                            }
+                            $params = $reflection->getParameters();
                         }
-                        $params = $reflection->getParameters();
                     }
 
                     foreach ($args as $i => $arg) {
@@ -486,7 +612,7 @@ abstract class Dump {
 
             if (isset($object)) {
                 $info = array(
-                    'object' => $object
+                            'object' => $object
                         ) + $info;
             }
 
@@ -497,11 +623,14 @@ abstract class Dump {
 
     /**
      * Renders an abbreviated version of the backtrace
+     *
      * @param array $ call stack trace to be analyzed, if not use this parameter indicates the call stack before the function
+     *
      * @return string
      */
-    public static function backtrace_small(array $trace = NULL) {
-        if ($trace === NULL) {
+    public static function backtrace_small(array $trace = null)
+    {
+        if ($trace === null) {
             $trace = debug_backtrace();
         }
 
@@ -522,11 +651,14 @@ abstract class Dump {
 
     /**
      * Renders source code of an specified programming language
+     *
      * @param string $code
      * @param string $language
+     *
      * @return string
      */
-    public static function source($code, $language = 'php', $editable = FALSE, $theme = 'default') {
+    public static function source($code, $language = 'php', $editable = false, $theme = 'default')
+    {
         $code = htmlspecialchars($code, ENT_NOQUOTES);
         $extra = '';
         $tag = 'pre';
@@ -538,17 +670,21 @@ abstract class Dump {
                 $tag = 'textarea';
             }
         }
-        return self::_assets_loader('init_dump($(".dump-code"),{static_url:"' . self::$_static_url . '"})') . "<$tag class=\"dump-code\" data-language=\"$language\" data-theme=\"$theme\" $extra>$code</$tag>";
+        return self::_assets_loader('init_dump($(".dump-code"),{static_url:"' . self::$_static_url . '"})') .
+               "<$tag class=\"dump-code\" data-language=\"$language\" data-theme=\"$theme\" $extra>$code</$tag>";
     }
 
     /**
      * Clean a path, replacing the special folders defined in the config. E.g.:
      *         /home/project/www/index.php -> APP_PATH/index.php
+     *
      * @param string $path
-     * @param bool $restore True for restore a cleared path to its original state
+     * @param bool   $restore True for restore a cleared path to its original state
+     *
      * @return string
      */
-    public static function clean_path($path, $restore = FALSE) {
+    public static function clean_path($path, $restore = false)
+    {
         foreach (self::$_special_paths as $clean_path => $source_path) {
             if ($restore) {
                 if (strpos($path, $clean_path) === 0) {
@@ -570,9 +706,10 @@ abstract class Dump {
      * Read the source code from a file, centered in a line number, with a specific padding and applying a highlight
      * @return string
      */
-    private static function _get_source($file, $line_number, $padding = 10) {
+    private static function _get_source($file, $line_number, $padding = 10)
+    {
         if (!$file || !is_readable($file)) { //Error de lectura
-            return FALSE;
+            return false;
         }
 
         // Open file
@@ -583,7 +720,7 @@ abstract class Dump {
         $end = $line_number + $padding;
 
         $source = array();
-        for ($line = 1; ($row = fgets($file)) !== FALSE && $line < $end; $line++) {
+        for ($line = 1; ($row = fgets($file)) !== false && $line < $end; $line++) {
             if ($line >= $start) {
                 $source[] = trim($row) == '' ? "&nbsp;\n" : htmlspecialchars($row, ENT_NOQUOTES);
             }
@@ -592,15 +729,19 @@ abstract class Dump {
         // Close file
         fclose($file);
 
-        return '<pre class="dump-code" data-language="php" data-from="' . $start . '" data-highlight="' . $line_number . '" data-theme="graynight">' . implode('', $source) . '</pre>';
+        return '<pre class="dump-code" data-language="php" data-from="' . $start . '" data-highlight="' . $line_number .
+               '" data-theme="graynight">' . implode('', $source) . '</pre>';
     }
 
     /**
      * Convert PHP config size to bytes (11M -> 11*1024*1024)
+     *
      * @param type $val
+     *
      * @return int
      */
-    private static function _return_bytes($val) {
+    private static function _return_bytes($val)
+    {
         $val = trim($val);
         $last = strtolower($val[strlen($val) - 1]);
         switch ($last) {
@@ -616,14 +757,15 @@ abstract class Dump {
         return $val;
     }
 
-    private static function _html_element($tag_name, $attributes, $content = NULL) {
+    private static function _html_element($tag_name, $attributes, $content = null)
+    {
         //Check input data
         if (!isset($content)) {
             if (is_array($attributes)) {
                 return '<' . $tag_name . self::_html_attributes($attributes) . ' />';
             } else {
                 $content = $attributes;
-                $attributes = NULL;
+                $attributes = null;
             }
         }
 
@@ -632,9 +774,15 @@ abstract class Dump {
             $content_html = array();
             foreach ($content as $child_element) {
                 if (is_array($child_element)) {
-                    $content_html[] = self::_html_element($child_element[0], $child_element[1], count($child_element) > 2 ? $child_element[2] : NULL);
-                } else if (!empty($child_element)) {
-                    $content_html[] = $child_element;
+                    $content_html[] = self::_html_element(
+                                          $child_element[0],
+                                              $child_element[1],
+                                              count($child_element) > 2 ? $child_element[2] : null
+                    );
+                } else {
+                    if (!empty($child_element)) {
+                        $content_html[] = $child_element;
+                    }
                 }
             }
             $content = implode('', $content_html);
@@ -648,7 +796,8 @@ abstract class Dump {
         }
     }
 
-    private static function _html_attributes($attributes = '') {
+    private static function _html_attributes($attributes = '')
+    {
         if (is_array($attributes)) {
             $atts = '';
             foreach ($attributes as $key => $val) {
@@ -690,7 +839,8 @@ if (!function_exists('dump')) {
      * }
      * @endcode
      */
-    function dump() {
+    function dump()
+    {
         call_user_func_array(array('Dump', 'show'), func_get_args());
     }
 
@@ -698,7 +848,8 @@ if (!function_exists('dump')) {
 
 if (!function_exists('dumpdie')) {
 
-    function dumpdie() {
+    function dumpdie()
+    {
         //Clean all output buffers
         while (ob_get_clean()) {
             ;

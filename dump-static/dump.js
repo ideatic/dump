@@ -47,9 +47,12 @@ var init_dump;
 
     //Dump
     init_dump = function(element, settings) {
-        return $(element).each(function() {
-            initialize($(this), settings);
+        return $(function() {
+            return $(element).each(function() {
+                initialize($(this), settings);
+            });
         });
+
 
     };
 
@@ -202,6 +205,7 @@ var init_dump;
                 if ($code_element.data('highlight')) {
                     editor.setLineClass($code_element.data('highlight') - first_line, "highlighted");
                 }
+
 
                 editor.getWrapperElement().editor = editor;//Used for direct access from DOM element
                 $(editor.getWrapperElement()).attr('name', $code_element.attr('name'));
