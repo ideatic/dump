@@ -1,4 +1,4 @@
-# Dump v0.1
+# Dump
 
 Debugging tool which displays information about any PHP variable, class or exception.
 

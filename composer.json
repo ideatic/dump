@@ -1,0 +1,17 @@
+{
+    "name": "ideatic/dump",
+    "description": "Displays information about any PHP variable, class or exception.",
+    "type": "library",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Javier Marín",
+            "email": "contacto@ideatic.net",
+            "homepage": "http://www.ideatic.net/"
+        }
+    ],
+    "autoload": {
+        "classmap": ["src/"]
+    },
+    "keywords": ["var_dump", "debug"]
+}

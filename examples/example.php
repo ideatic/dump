@@ -2,9 +2,9 @@
 
 function dump() {
     if (!class_exists('Dump')) {
-        require 'Dump.php';
+        require '../src/Dump.php';
         //Configuration
-        Dump::config('dump-static', array(
+        Dump::config('../assets/', array(
             'APP_PATH' => dirname(__FILE__)
                 )
         );
