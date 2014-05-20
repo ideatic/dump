@@ -9,6 +9,7 @@
     padding: 5px;
     margin: 5px;
     position: relative;
+    z-index: 999;
     clear: both;
 
     -webkit-border-radius: 10px;
