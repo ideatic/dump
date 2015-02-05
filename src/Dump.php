@@ -115,9 +115,9 @@ abstract class Dump
         //Footer
         if (isset($step) && $show_caller) {
             $html[] = self::_html_element(
-                          'div',
-                              array('class' => 'dump-footer'),
-                              "$action from {$step['file']}, line {$step['line']}"
+                'div',
+                array('class' => 'dump-footer'),
+                "$action from {$step['file']}, line {$step['line']}"
             );
         }
 
@@ -141,6 +141,7 @@ abstract class Dump
                     while ((i = _dumpq.shift()) !== undefined) {
                         i();
                     }
+                    init=true;
                 };
 
                 if (!init) {
@@ -181,9 +182,9 @@ abstract class Dump
                 if (preg_match('#^(\w+):\/\/([\w@][\w.:@]+)\/?[\w\.?=%&=\-@/$,]*$#', $data)) //URL
                 {
                     $html = self::_html_element(
-                                'a',
-                                    array('href' => $data, 'target' => '_blank'),
-                                    htmlspecialchars($data)
+                        'a',
+                        array('href' => $data, 'target' => '_blank'),
+                        htmlspecialchars($data)
                     );
                 } else {
                     if (preg_match(
@@ -193,29 +194,29 @@ abstract class Dump
                     ) //Email
                     {
                         $html = self::_html_element(
-                                    'a',
-                                        array('href' => "mailto:$data", 'target' => '_blank'),
-                                        htmlspecialchars($data)
+                            'a',
+                            array('href' => "mailto:$data", 'target' => '_blank'),
+                            htmlspecialchars($data)
                         );
                     } else {
                         if (strpos($data, '<') !== false || strlen($data) > 15
                         ) //Only expand if is a long text or HTML code
                         {
                             $html = self::_html_element(
-                                        'div',
-                                            array('class' => 'dump-string'),
-                                            htmlspecialchars($data)
+                                'div',
+                                array('class' => 'dump-string'),
+                                htmlspecialchars($data)
                             );
                         }
                     }
                 }
                 $render = self::_render_item(
-                              $name,
-                                  'String',
-                                  strlen($data) > 100 ? substr($data, 0, 100) . '...' : $data,
-                                  $metadata,
-                                  strlen($data) . ' characters',
-                                  isset($html) ? $html : ''
+                    $name,
+                    'String',
+                    strlen($data) > 100 ? substr($data, 0, 100) . '...' : $data,
+                    $metadata,
+                    strlen($data) . ' characters',
+                    isset($html) ? $html : ''
                 );
             } elseif (is_float($data)) {
                 $render = self::_render_item($name, 'Float', $data, $metadata);
@@ -249,9 +250,9 @@ abstract class Dump
         $info = '';
         if (!empty($type)) {
             $info .= self::_html_element(
-                         'span',
-                             array('class' => 'dump-type'),
-                             !empty($metadata) ? "$metadata, $type" : $type
+                'span',
+                array('class' => 'dump-type'),
+                !empty($metadata) ? "$metadata, $type" : $type
             );
         }
         if (!empty($extra_info)) {
@@ -263,14 +264,14 @@ abstract class Dump
 
         $html = array();
         $html[] = self::_html_element(
-                      'div',
-                          array('class' => array('dump-header', $class, empty($inner_html) ? '' : ' dump-collapsed')),
-                          array(
-                              array('span', array('class' => 'dump-name'), htmlspecialchars($name)),
-                              empty($info) ? '' : " ($info)",
-                              ' ',
-                              array('span', array('class' => 'dump-value'), htmlspecialchars($value)),
-                          )
+            'div',
+            array('class' => array('dump-header', $class, empty($inner_html) ? '' : ' dump-collapsed')),
+            array(
+                array('span', array('class' => 'dump-name'), htmlspecialchars($name)),
+                empty($info) ? '' : " ($info)",
+                ' ',
+                array('span', array('class' => 'dump-value'), htmlspecialchars($value)),
+            )
         );
 
         if (!empty($inner_html)) {
@@ -337,13 +338,13 @@ abstract class Dump
         $inner[] = self::_render_vars(false, 'Backtrace', $analized_trace, $level);
 
         return self::_render_item(
-                   $name,
-                       $show_location ? ($path . ':' . $e->getLine()) : '',
-                       strip_tags($message),
-                       '',
-                       '',
-                       $inner,
-                       'exception'
+            $name,
+            $show_location ? ($path . ':' . $e->getLine()) : '',
+            strip_tags($message),
+            '',
+            '',
+            $inner,
+            'exception'
         );
     }
 
@@ -441,12 +442,12 @@ abstract class Dump
         //Render item
         if ($is_object) {
             return self::_render_item(
-                       $name,
-                           'Object',
-                           get_class($data),
-                           $metadata,
-                           isset($properties_count) ? "$properties_count fields" : '',
-                           $inner_html
+                $name,
+                'Object',
+                get_class($data),
+                $metadata,
+                isset($properties_count) ? "$properties_count fields" : '',
+                $inner_html
             );
         } else {
             if ($is_backtrace) {
@@ -522,12 +523,12 @@ abstract class Dump
     {
         $edit_link = '';
         return self::_render_item(
-                   $name,
-                       '',
-                       "$file:$line",
-                       '',
-                       '',
-                       self::_html_element('div', array('class' => 'dump-source'), $edit_link . $value)
+            $name,
+            '',
+            "$file:$line",
+            '',
+            '',
+            self::_html_element('div', array('class' => 'dump-source'), $edit_link . $value)
         );
     }
 
@@ -580,10 +581,12 @@ abstract class Dump
                     } else {
                         if (class_exists('ReflectionMethod', false)) {
                             if (isset($class)) {
-                                $reflection = new ReflectionMethod($class, method_exists(
+                                $reflection = new ReflectionMethod(
+                                    $class, method_exists(
                                     $class,
                                     $function
-                                ) ? $function : '__call');
+                                ) ? $function : '__call'
+                                );
                             } else {
                                 $reflection = new ReflectionFunction($function);
                             }
@@ -604,10 +607,10 @@ abstract class Dump
             }
             $info = array(
                 'function' => $function_call,
-                'args' => $function_args,
-                'file' => self::clean_path($file),
-                'line' => $line,
-                'source' => $source,
+                'args'     => $function_args,
+                'file'     => self::clean_path($file),
+                'line'     => $line,
+                'source'   => $source,
             );
 
             if (isset($object)) {
@@ -657,7 +660,7 @@ abstract class Dump
      *
      * @return string
      */
-    public static function source($code, $language = 'php', $editable = false, $theme = 'default')
+    public static function source($code, $language = 'php', $editable = false, $attrs = array(), $theme = 'default')
     {
         $code = htmlspecialchars($code, ENT_NOQUOTES);
         $extra = '';
@@ -670,8 +673,9 @@ abstract class Dump
                 $tag = 'textarea';
             }
         }
-        return self::_assets_loader('init_dump($(".dump-code"),{static_url:"' . self::$_static_url . '"})') .
-               "<$tag class=\"dump-code\" data-language=\"$language\" data-theme=\"$theme\" $extra>$code</$tag>";
+        $extra .= self::_html_attributes($attrs);
+        return "<$tag class=\"dump-code\" data-language=\"$language\" data-theme=\"$theme\" $extra>$code</$tag>" .
+               self::_assets_loader('init_dump($(".dump-code"),{static_url:"' . self::$_static_url . '"})');
     }
 
     /**
@@ -775,9 +779,9 @@ abstract class Dump
             foreach ($content as $child_element) {
                 if (is_array($child_element)) {
                     $content_html[] = self::_html_element(
-                                          $child_element[0],
-                                              $child_element[1],
-                                              count($child_element) > 2 ? $child_element[2] : null
+                        $child_element[0],
+                        $child_element[1],
+                        count($child_element) > 2 ? $child_element[2] : null
                     );
                 } else {
                     if (!empty($child_element)) {

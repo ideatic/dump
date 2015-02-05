@@ -1,26 +1,25 @@
 var init_dump;
 
-(function($) {
+(function ($) {
     "use strict";
 
     //Double click plugin
-    $.fn.single_double_click = function(single_click_callback, double_click_callback, timeout) {
-        return this.each(function() {
+    $.fn.single_double_click = function (single_click_callback, double_click_callback, timeout) {
+        return this.each(function () {
             var clicks = 0,
-                    self = this;
-            var isIE = (function()
-            {
+                self = this;
+            var isIE = (function () {
                 var div = document.createElement('div');
                 div.innerHTML = '<!--[if IE]><i></i><![endif]-->';
                 return (div.getElementsByTagName('i').length === 1);
             });
             if (isIE()) { // ie triggers dblclick instead of click if they are fast
-                $(this).bind("dblclick", function(event) {
+                $(this).bind("dblclick", function (event) {
                     clicks = 2;
                     double_click_callback.call(self, event);
                 });
-                $(this).bind("click", function(event) {
-                    setTimeout(function() {
+                $(this).bind("click", function (event) {
+                    setTimeout(function () {
                         if (clicks != 2) {
                             single_click_callback.call(self, event);
                         }
@@ -28,10 +27,10 @@ var init_dump;
                     }, timeout || 300);
                 });
             } else {
-                $(this).bind("click", function(event) {
+                $(this).bind("click", function (event) {
                     clicks++;
                     if (clicks == 1) {
-                        setTimeout(function() {
+                        setTimeout(function () {
                             if (clicks == 1) {
                                 single_click_callback.call(self, event);
                             } else {
@@ -46,9 +45,9 @@ var init_dump;
     };
 
     //Dump
-    init_dump = function(element, settings) {
-        return $(function() {
-            return $(element).each(function() {
+    init_dump = function (element, settings) {
+        return $(function () {
+            return $(element).each(function () {
                 initialize($(this), settings);
             });
         });
@@ -56,7 +55,7 @@ var init_dump;
 
     };
 
-    var initialize = function($dump, settings) {
+    var initialize = function ($dump, settings) {
         if (!$dump.data('dump-settings')) {
             $dump.data('dump-settings', settings);
 
@@ -76,9 +75,9 @@ var init_dump;
 
 
     function init_toggles($dump, settings) {
-        $dump.find('.dump-collapsed').single_double_click(function() { //Click, alternar solo el nodo actual
+        $dump.find('.dump-collapsed').single_double_click(function () { //Click, alternar solo el nodo actual
             toggle_element(this, null, 'fast', false);
-        }, function() { //Doble click, alternar todos los nodos hijo
+        }, function () { //Doble click, alternar todos los nodos hijo
             toggle_element(this, null, 'fast', true);
         }, 200);
     }
@@ -98,14 +97,14 @@ var init_dump;
             $(content).hide(speed);
         }
         if (apply_children) {
-            $(content).find('.dump-collapsed').each(function() {
+            $(content).find('.dump-collapsed').each(function () {
                 toggle_element(this, show, '', false);
             });
         }
         if (show) { //Primero expandir los hijos y luego el actual
-            $(content).show(speed, function() {
+            $(content).show(speed, function () {
                 //Fix CodeMirror error, not working properly when the element is hidden
-                $(this).find('.CodeMirror').each(function() {
+                $(this).find('.CodeMirror').each(function () {
                     this.editor.refresh();
                 });
             });
@@ -115,13 +114,13 @@ var init_dump;
 
     function init_overlay($dump, settings) {
         //Añadir botón para mostrar los datos superpuestos al resto de elementos
-        $('<div class="dump-expand" />').click(function() {
+        $('<div class="dump-expand" />').click(function () {
             //Crear capa de superposición a todo el body (tipo 'fancybox')
             var overlay = $('<div id="dump-overlay" />').hide().appendTo("body");
             $(document).resize(
-                    function() {
-                        $(overlay).height($(document).height());
-                    }).trigger('resize');
+                function () {
+                    $(overlay).height($(document).height());
+                }).trigger('resize');
 
             //Insertar señuelo con el mismo tamaño que el elemento original
             var dummy = $('<div>').addClass('dump').width($dump.width()).height($dump.height());
@@ -130,9 +129,9 @@ var init_dump;
             //Close button
             var close_button = $('<div>').addClass('dump-close').appendTo($dump);
 
-            $(close_button).add(overlay).click(function() {
-                $dump.fadeOut('fast', function() {
-                    $(overlay).fadeOut('fast', function() {
+            $(close_button).add(overlay).click(function () {
+                $dump.fadeOut('fast', function () {
+                    $(overlay).fadeOut('fast', function () {
                         $(overlay).remove();
                     });
                     $(close_button).remove();
@@ -154,10 +153,10 @@ var init_dump;
     }
 
     function init_string_viewer($dump, settings) {
-        $dump.find('.dump-string').each(function() {
+        $dump.find('.dump-string').each(function () {
             $(this).html('<div class="dump-string-tools"><span class="dump-string-format-plain dump-selected">PLAIN</span> <span class="dump-string-format-html">HTML</span></div><div class="dump-string-text">' + $(this).html() + '</div>');
         });
-        $dump.find('.dump-string-format-plain,.dump-string-format-html').click(function() {
+        $dump.find('.dump-string-format-plain,.dump-string-format-html').click(function () {
             if ($(this).hasClass('dump-selected'))
                 return;
 
@@ -172,9 +171,9 @@ var init_dump;
                 var text = $(textDiv).text();
                 $(textDiv).data('text', text).html('');
                 $('<iframe style="background:#fff" />').load(
-                        function() {
-                            $(this).contents().get(0).write(text);
-                        }).appendTo(textDiv);
+                    function () {
+                        $(this).contents().get(0).write(text);
+                    }).appendTo(textDiv);
             }
         });
     }
@@ -185,15 +184,13 @@ var init_dump;
         if ($code.length <= 0)
             return;
 
-        var highlight_code = function() {
-            $code.each(function() {
+        var highlight_code = function () {
+            $code.each(function () {
                 var $code_element = $(this);
 
                 var first_line = parseInt($code_element.data('from') || 1);
 
-                var editor = CodeMirror(function(editor) {
-                    $code_element.replaceWith(editor);
-                }, {
+                var settings = {
                     value: $code_element.text(),
                     mode: $code_element.data('language') == "php" ? "text/x-php" : $code_element.data('language'),
                     theme: $code_element.data('theme') || "graynight",
@@ -201,14 +198,26 @@ var init_dump;
                     matchBrackets: true,
                     readOnly: !$code_element.data('editable'),
                     firstLineNumber: first_line
-                });
+                };
+
+                var wrapper;
+                if ($code_element.data('editable')) {
+                    wrapper = $code_element.get(0);
+                    var editor = CodeMirror.fromTextArea(wrapper, settings);
+
+                } else {
+                    var editor = CodeMirror(function (w) {
+                        wrapper = w;
+                        $code_element.replaceWith(w);
+                    }, settings);
+                }
+
                 if ($code_element.data('highlight')) {
                     editor.setLineClass($code_element.data('highlight') - first_line, "highlighted");
                 }
 
 
-                editor.getWrapperElement().editor = editor;//Used for direct access from DOM element
-                $(editor.getWrapperElement()).attr('name', $code_element.attr('name'));
+                wrapper.editor = editor;//Used for direct access from DOM element
             });
         };
 
@@ -222,7 +231,7 @@ var init_dump;
             $([
                 settings.static_url + "/CodeMirror/codemirror.css",
                 settings.static_url + "/CodeMirror/theme/graynight.css"
-            ]).each(function() {
+            ]).each(function () {
                 $("<link/>", {
                     rel: "stylesheet",
                     type: "text/css",
@@ -234,7 +243,7 @@ var init_dump;
                 dataType: "script",
                 cache: true,
                 url: settings.static_url + "/CodeMirror/codemirror.js",
-                success: function() {
+                success: function () {
                     $(document).trigger('codemirror_loaded');
                 }
             });
