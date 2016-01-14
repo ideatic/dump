@@ -11,13 +11,22 @@ abstract class Dump
     private static $_static_url = '/dump-static';
     private static $_special_paths = array();
     private static $_nesting_level = 5;
-    private static $_recursion_objects;
 
     public static function config($static_url = '/dump-static', $special_paths = array(), $nesting_level = 5)
     {
+        if (func_num_args() == 0) {
+            return [
+                'static_url'=>self::$_static_url,   'special_paths'=>self::$_special_paths,  'nesting_level'=> self::$_nesting_level];
+        }
+
         self::$_static_url = $static_url;
         self::$_special_paths = $special_paths;
         self::$_nesting_level = $nesting_level;
+    }
+
+    private static function _load_helpers()
+    {
+        require_once dirname(__FILE__) . '/DumpRender.php';
     }
 
     /**
@@ -27,21 +36,44 @@ abstract class Dump
      */
     public static function show()
     {
+        self::_load_helpers();
+
+        $render = new DumpRender();
+        $render->html = true;
+
         $data = func_get_args();
-        echo self::render_data($data, null, true);
+        echo $render->render($data);
     }
 
     /**
      * Gets information about one or more PHP variables and return it in HTML code
      *
-     * @param mixed $var
-     *
      * @return string
      */
     public static function render()
     {
+        self::_load_helpers();
+
+        $render = new DumpRender();
+
         $data = func_get_args();
-        return self::render_data($data, null, true);
+        return $render->render($data);
+    }
+
+    /**
+     * Gets information about one or more PHP variables and return it in plain text
+     *
+     * @return string
+     */
+    public static function print_r()
+    {
+        self::_load_helpers();
+
+        $render = new DumpRender();
+        $render->html = false;
+
+        $data = func_get_args();
+        return $render->render($data);
     }
 
     /**
@@ -49,488 +81,17 @@ abstract class Dump
      *
      * @param mixed $name Name of the analyzed var, or dictionary with several vars and names
      * @param mixed $value
-     * @param bool  $show_caller
      *
      * @return string
      */
-    public static function render_data($name, $value = null, $show_caller = true)
+    public static function render_data($name, $value, $show_caller = true)
     {
-        //Prepare data
-        if (is_array($name)) {
-            $data = $name;
-        } else {
-            $data = array($name => $value);
-        }
+        self::_load_helpers();
 
-        //Render data
-        if (count($data) == 1 && ($e = reset($data)) instanceof Exception) {
-            self::$_recursion_objects = array();
-            $inner = array(self::_render_exception($e, false));
-
-            //Caller info
-            $show_caller = true;
-            $action = 'Thrown';
-            $step['file'] = self::clean_path($e->getFile());
-            $step['line'] = $e->getLine();
-        } else {
-            $inner = array();
-            foreach ($data as $name => $value) {
-                self::$_recursion_objects = array();
-
-                $inner[] = self::_render(empty($name) || is_numeric($name) ? '...' : $name, $value);
-
-                self::$_recursion_objects = null;
-            }
-
-            //Caller info
-            if ($show_caller) {
-
-                $action = 'Called';
-                $trace = debug_backtrace();
-                while ($step = array_pop($trace)) {
-                    if (stripos($step['function'], 'dump') === 0 ||
-                        (isset($step['class']) && strToLower($step['class']) == 'dump')
-                    ) {
-                        break;
-                    }
-                }
-                $step['file'] = self::clean_path($step['file']);
-            }
-        }
-
-
-        //Generate HTML
-        $html = array('<div class="dump">');
-
-        //Loader
-        $html[] = self::_assets_loader('init_dump($(".dump"),{static_url:"' . self::$_static_url . '"})');
-
-        //Content
-        $html[] = '<ul class="dump-node dump-firstnode"><li>';
-        foreach ($inner as $item) {
-            $html[] = $item;
-        }
-        $html[] = '</li></ul>';
-
-        //Footer
-        if (isset($step) && $show_caller) {
-            $html[] = self::_html_element(
-                'div',
-                array('class' => 'dump-footer'),
-                "$action from {$step['file']}, line {$step['line']}"
-            );
-        }
-
-        $html[] = '</div>';
-        return implode('', $html);
+        $render = new DumpRender();
+        return $render->render($name, $value);
     }
 
-    private static function _assets_loader($on_load = '')
-    {
-        ob_start();
-        ?>
-        <script>
-            window.jQuery || document.write('<script src="<?php echo self::$_static_url ?>/jquery.js"><\/script>');</script>
-        <script>
-            var _dumpq = _dumpq || [];
-            _dumpq.push(function () {
-                <?php echo $on_load ?>;
-            });
-            (function ($, init) {
-                var loadq = function () {
-                    while ((i = _dumpq.shift()) !== undefined) {
-                        i();
-                    }
-                    init=true;
-                };
-
-                if (!init) {
-                    $.getScript("<?php echo self::$_static_url ?>/dump.js", loadq);
-                    $("head").append($("<link rel='stylesheet' type='text/css' href='<?php echo self::$_static_url ?>/dump.css' />"));
-                    init = 'loading';
-                } else if (init !== 'loading') {
-                    loadq();
-                }
-            })(window.jQuery, window.init_dump);
-        </script>
-        <noscript>
-            <style>@import url("<?php echo self::$_static_url ?>/dump.css");
-
-                .dump-firstnode > li > .dump-content {
-                    display: block;
-                }</style>
-        </noscript>
-        <?php
-        return ob_get_clean();
-    }
-
-    private static function _render($name, &$data, $level = 0, $metadata = null)
-    {
-        $memory_limit = self::_return_bytes(ini_get('memory_limit'));
-        if (memory_get_usage() > $memory_limit * 0.75) {
-            $render = self::_render_item($name, '&times;', 'Memory exhausted', $metadata);
-        } else {
-            if ($data instanceof Exception) {
-                $render = self::_render_exception($data, true, $level);
-            } elseif (is_object($data)) {
-                $render = self::_render_vars(true, $name, $data, $level, $metadata);
-            } elseif (is_array($data)) {
-                $render = self::_render_vars(false, $name, $data, $level, $metadata);
-            } elseif (is_resource($data)) {
-                $render = self::_render_item($name, 'Resource', get_resource_type($data), $metadata);
-            } elseif (is_string($data)) {
-                if (preg_match('#^(\w+):\/\/([\w@][\w.:@]+)\/?[\w\.?=%&=\-@/$,]*$#', $data)) //URL
-                {
-                    $html = self::_html_element(
-                        'a',
-                        array('href' => $data, 'target' => '_blank'),
-                        htmlspecialchars($data)
-                    );
-                } else {
-                    if (preg_match(
-                        '#^([a-zA-Z0-9_\-\.]+)@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.)|(([a-zA-Z0-9\-]+\.)+))([a-zA-Z]{2,4}|[0-9]{1,3})$#',
-                        $data
-                    )
-                    ) //Email
-                    {
-                        $html = self::_html_element(
-                            'a',
-                            array('href' => "mailto:$data", 'target' => '_blank'),
-                            htmlspecialchars($data)
-                        );
-                    } else {
-                        if (strpos($data, '<') !== false || strlen($data) > 15
-                        ) //Only expand if is a long text or HTML code
-                        {
-                            $html = self::_html_element(
-                                'div',
-                                array('class' => 'dump-string'),
-                                htmlspecialchars($data)
-                            );
-                        }
-                    }
-                }
-                $render = self::_render_item(
-                    $name,
-                    'String',
-                    strlen($data) > 100 ? substr($data, 0, 100) . '...' : $data,
-                    $metadata,
-                    strlen($data) . ' characters',
-                    isset($html) ? $html : ''
-                );
-            } elseif (is_float($data)) {
-                $render = self::_render_item($name, 'Float', $data, $metadata);
-            } elseif (is_integer($data)) {
-                $render = self::_render_item($name, 'Integer', $data, $metadata);
-            } elseif (is_bool($data)) {
-                $render = self::_render_item($name, 'Boolean', $data ? 'TRUE' : 'FALSE', $metadata);
-            } elseif (is_null($data)) {
-                $render = self::_render_item($name, 'NULL', null, $metadata);
-            } else {
-                $render = self::_render_item($name, '?', '<pre>' . print_r($data, true) . '</pre>', $metadata);
-            }
-        }
-
-        return is_array($render) ? implode('', $render) : $render;
-    }
-
-    private static function _render_item(
-        $name,
-        $type = '',
-        $value = '',
-        $metadata = '',
-        $extra_info = '',
-        $inner_html = null,
-        $class = null
-    ) {
-        if (!isset($class)) {
-            $class = strtolower($type);
-        }
-
-        $info = '';
-        if (!empty($type)) {
-            $info .= self::_html_element(
-                'span',
-                array('class' => 'dump-type'),
-                !empty($metadata) ? "$metadata, $type" : $type
-            );
-        }
-        if (!empty($extra_info)) {
-            if (!empty($info)) {
-                $info .= ', ';
-            }
-            $info .= self::_html_element('span', array('class' => 'dump-info'), $extra_info);
-        }
-
-        $html = array();
-        $html[] = self::_html_element(
-            'div',
-            array('class' => array('dump-header', $class, empty($inner_html) ? '' : ' dump-collapsed')),
-            array(
-                array('span', array('class' => 'dump-name'), htmlspecialchars($name)),
-                empty($info) ? '' : " ($info)",
-                ' ',
-                array('span', array('class' => 'dump-value'), htmlspecialchars($value)),
-            )
-        );
-
-        if (!empty($inner_html)) {
-            $html[] = "<div class=\"dump-content $class\"><ul class=\"dump-node\">";
-
-            if (!is_array($inner_html)) {
-                $inner_html = array($inner_html);
-            }
-
-            foreach ($inner_html as $item) {
-                $html[] = '<li>';
-                $html[] = $item;
-                $html[] = '</li>';
-            }
-
-            $html[] = "</ul></div>";
-        }
-
-        unset($inner_html); //free memory
-        return implode('', $html);
-    }
-
-    private static function _render_exception(Exception &$e, $show_location = true, $level = 0)
-    {
-        $inner = array();
-        $analized_trace = self::backtrace($e->getTrace());
-        $path = self::clean_path($e->getFile());
-
-        //Exception name
-        $name = get_class($e);
-
-        //Basic info about the exception
-        $message = self::clean_path($e->getMessage());
-        $inner[] = self::_html_element('div', array('class' => 'dump-exception'), htmlspecialchars($message));
-
-        //Source code
-        foreach ($analized_trace as $step) {
-            if ($step['file'] == $path && $step['line'] == $e->getLine()) {
-                $source = $step['source'];
-                break;
-            }
-        }
-        if (!isset($source)) {
-            $source = self::_get_source($e->getFile(), $e->getLine());
-        }
-        if (!empty($source)) {
-            $inner[] = self::_render_source_code('Source', $source, $path, $e->getLine());
-        }
-
-        //Context and data
-        if (method_exists($e, 'getContext')) {
-            $context = $e->getContext();
-            $inner[] = self::_render('Context', $context, $level + 1);
-        }
-        if (method_exists($e, 'getData')) {
-            $data = $e->getData();
-            $inner[] = self::_render('Data', $data, $level + 1);
-        }
-
-        //Fields
-        $inner[] = self::_render_vars(true, 'Fields', $e, $level);
-
-        //Backtrace
-        $inner[] = self::_render_vars(false, 'Backtrace', $analized_trace, $level);
-
-        return self::_render_item(
-            $name,
-            $show_location ? ($path . ':' . $e->getLine()) : '',
-            strip_tags($message),
-            '',
-            '',
-            $inner,
-            'exception'
-        );
-    }
-
-    private static function _render_vars($is_object, $name, &$data, $level = 0, $metadata = '')
-    {
-        //"Patch" to detect if the current array is a backtrace
-        $is_backtrace = !$is_object && isset($data['function']) && is_string($data['function']) &&
-                        isset($data['file']) && is_string($data['file']);
-
-        $recursive = $level > 4 && $is_object && in_array($data, self::$_recursion_objects, true);
-        if ($level < self::$_nesting_level && !$recursive) {
-            //Render subitems
-            $inner_html = array();
-            if ($is_object) {
-                $properties_count = 0;
-                $properties = array();
-                if (!($data instanceof stdClass) && class_exists('ReflectionClass', false)) {
-                    $current = new ReflectionClass($data);
-                    $private_data = null;
-                    while ($current !== false) {
-                        foreach ($current->getProperties() as $property) {
-                            /* @var $property ReflectionProperty */
-                            if (in_array($property->name, $properties)) {
-                                continue;
-                            }
-
-                            //Get metadata
-                            $meta = array();
-                            if ($property->isStatic()) {
-                                $meta[] = 'Static';
-                            }
-                            if ($property->isPrivate()) {
-                                $meta[] = 'Private';
-                            }
-                            if ($property->isProtected()) {
-                                $meta[] = 'Protected';
-                            }
-                            if ($property->isPublic()) {
-                                $meta[] = 'Public';
-                            }
-
-                            //Build field
-                            if ($property->isPublic()) {
-                                $value = $property->getValue($data);
-                            } else {
-                                if (method_exists($property, 'setAccessible')) {
-                                    $property->setAccessible(true);
-                                    $value = $property->getValue($data);
-                                } else {
-                                    if (!isset($private_data)) { //Initialize object private data
-                                        $private_data = self::_get_private_data($data, array());
-                                    }
-
-                                    if (array_key_exists($property->name, $private_data)) {
-                                        $value = $private_data[$property->name];
-                                    } else {
-                                        $value = '?';
-                                    }
-                                }
-                            }
-                            $inner_html[] = self::_render($property->name, $value, $level + 1, implode(', ', $meta));
-                            $properties[] = $property->name;
-                        }
-                        $current = $current->getParentClass();
-                        $properties_count = count($properties);
-                    }
-                }
-
-                //Find runtime properties
-                foreach (get_object_vars($data) as $key => $value) {
-                    if (in_array($key, $properties)) {
-                        continue;
-                    }
-
-                    $inner_html[] = self::_render($key, $value, $level + 1);
-                    $properties_count++;
-                }
-
-                self::$_recursion_objects[] = $data;
-            } else { //Array
-                foreach ($data as $key => &$value) {
-                    if ($is_backtrace && $key == 'source' && is_string($value) && !empty($value)) {
-                        $inner_html[] = self::_render_source_code($key, $value, $data['file'], $data['line']);
-                    } else {
-                        if (!$is_backtrace || !in_array($key, array('function', 'file', 'line'))) {
-                            $inner_html[] = self::_render($key, $value, $level + 1);
-                        }
-                    }
-                }
-            }
-        } else {
-            $inner_html = '&infin;';
-        }
-
-        //Render item
-        if ($is_object) {
-            return self::_render_item(
-                $name,
-                'Object',
-                get_class($data),
-                $metadata,
-                isset($properties_count) ? "$properties_count fields" : '',
-                $inner_html
-            );
-        } else {
-            if ($is_backtrace) {
-                $type = $data['function'];
-                $info = (isset($data['args']) ? count($data['args']) : 0) . ' parameters';
-            } else {
-                $type = 'Array';
-                $info = count($data) . ' elements';
-            }
-
-            return self::_render_item($name, $type, '', $metadata, $info, $inner_html);
-        }
-    }
-
-    private static function _get_private_data($object, $default = false)
-    {
-        for ($method = 0; $method < 2; $method++) {
-            try {
-                $raw_data = false;
-                if ($method == 0) {
-                    //Based on a hack to access private properties: http://derickrethans.nl/private-properties-exposed.html
-                    $raw_data = (array)$object;
-                } else {
-                    if ($method == 1) {
-                        //Try to get it using serialize()
-                        $class_name = get_class($object);
-                        $serialized = serialize($object);
-
-                        if (preg_match('/' . preg_quote($class_name) . '.\:(\d+)/', $serialized, $match)) {
-                            $prop_count = $match[1];
-                            $class_name_len = strlen($class_name);
-
-                            $serialized_array = str_replace(
-                                "O:$class_name_len:\"$class_name\":$prop_count:",
-                                "a:$prop_count:",
-                                $serialized
-                            );
-
-                            if ($serialized != $serialized_array) {
-                                $raw_data = unserialize($serialized_array);
-                            }
-                        }
-                    }
-                }
-
-                if ($raw_data !== false) {
-                    $data = array();
-                    foreach ($raw_data as $key => $value) {
-                        $pos = strrpos($key, "\0");
-
-                        if ($pos !== false
-                        ) //Remove special names given by php ( "\0*\0" for protected fields, "\0$class_name\0" for private)
-                        {
-                            $key = substr($key, $pos + 1);
-                        }
-
-                        $data[$key] = $value;
-                    }
-
-                    if (!empty($data)) {
-                        return $data;
-                    }
-                }
-            } catch (Exception $err) {
-
-            }
-        }
-
-        return $default;
-    }
-
-    private static function _render_source_code($name, $value, $file = null, $line = null)
-    {
-        $edit_link = '';
-        return self::_render_item(
-            $name,
-            '',
-            "$file:$line",
-            '',
-            '',
-            self::_html_element('div', array('class' => 'dump-source'), $edit_link . $value)
-        );
-    }
 
     /**
      * Analyzes the backtrace generated by debug_backtrace function(),
@@ -564,7 +125,8 @@ abstract class Dump
 
             //Source code of the call to this step
             if (!empty($file) && !empty($line)) {
-                $source = self::_get_source($step['file'], $step['line']);
+                self::_load_helpers();
+                $source = DumpRender::get_source($step['file'], $step['line']);
             } else {
                 $source = '';
             }
@@ -639,14 +201,14 @@ abstract class Dump
 
         $output = array();
         foreach ($trace as $i => $step) {
-
             //Get data from the current step
             foreach (array('class', 'type', 'function', 'file', 'line', 'args') as $param) {
                 $$param = isset($step[$param]) ? $step[$param] : '';
             }
 
             //Generate HTML
-            $output[] = self::_html_element('abbr', array('title' => "$file:$line"), $class . $type . $function);
+            self::_load_helpers();
+            $output[] = DumpRender::html_element('abbr', array('title' => "$file:$line"), $class . $type . $function);
         }
 
         return implode(' &rarr; ', array_reverse($output));
@@ -662,6 +224,8 @@ abstract class Dump
      */
     public static function source($code, $language = 'php', $editable = false, $attrs = array(), $theme = 'default')
     {
+        self::_load_helpers();
+
         $code = htmlspecialchars($code, ENT_NOQUOTES);
         $extra = '';
         $tag = 'pre';
@@ -673,9 +237,9 @@ abstract class Dump
                 $tag = 'textarea';
             }
         }
-        $extra .= self::_html_attributes($attrs);
+        $extra .= DumpRender::html_attributes($attrs);
         return "<$tag class=\"dump-code\" data-language=\"$language\" data-theme=\"$theme\" $extra>$code</$tag>" .
-               self::_assets_loader('init_dump($(".dump-code"),{static_url:"' . self::$_static_url . '"})');
+               DumpRender::assets_loader('init_dump($(".dump-code"),{static_url:"' . self::$_static_url . '"})',self::$_static_url);
     }
 
     /**
@@ -703,126 +267,7 @@ abstract class Dump
             }
         }
 
-        return str_replace(array('\\', '/'), DIRECTORY_SEPARATOR, $path);
-    }
-
-    /**
-     * Read the source code from a file, centered in a line number, with a specific padding and applying a highlight
-     * @return string
-     */
-    private static function _get_source($file, $line_number, $padding = 10)
-    {
-        if (!$file || !is_readable($file)) { //Error de lectura
-            return false;
-        }
-
-        // Open file
-        $file = fopen($file, 'r');
-
-        // Set padding
-        $start = max(1, $line_number - $padding);
-        $end = $line_number + $padding;
-
-        $source = array();
-        for ($line = 1; ($row = fgets($file)) !== false && $line < $end; $line++) {
-            if ($line >= $start) {
-                $source[] = trim($row) == '' ? "&nbsp;\n" : htmlspecialchars($row, ENT_NOQUOTES);
-            }
-        }
-
-        // Close file
-        fclose($file);
-
-        return '<pre class="dump-code" data-language="php" data-from="' . $start . '" data-highlight="' . $line_number .
-               '" data-theme="graynight">' . implode('', $source) . '</pre>';
-    }
-
-    /**
-     * Convert PHP config size to bytes (11M -> 11*1024*1024)
-     *
-     * @param type $val
-     *
-     * @return int
-     */
-    private static function _return_bytes($val)
-    {
-        $val = trim($val);
-        $last = strtolower($val[strlen($val) - 1]);
-        switch ($last) {
-            // The 'G' modifier is available since PHP 5.1.0
-            case 'g':
-                $val *= 1024;
-            case 'm':
-                $val *= 1024;
-            case 'k':
-                $val *= 1024;
-        }
-
-        return $val;
-    }
-
-    private static function _html_element($tag_name, $attributes, $content = null)
-    {
-        //Check input data
-        if (!isset($content)) {
-            if (is_array($attributes)) {
-                return '<' . $tag_name . self::_html_attributes($attributes) . ' />';
-            } else {
-                $content = $attributes;
-                $attributes = null;
-            }
-        }
-
-        //Prepare content
-        if (is_array($content)) {
-            $content_html = array();
-            foreach ($content as $child_element) {
-                if (is_array($child_element)) {
-                    $content_html[] = self::_html_element(
-                        $child_element[0],
-                        $child_element[1],
-                        count($child_element) > 2 ? $child_element[2] : null
-                    );
-                } else {
-                    if (!empty($child_element)) {
-                        $content_html[] = $child_element;
-                    }
-                }
-            }
-            $content = implode('', $content_html);
-        }
-
-        //Build element
-        if (empty($attributes)) {
-            return "<$tag_name>$content</$tag_name>";
-        } else {
-            return '<' . $tag_name . self::_html_attributes($attributes) . ">$content</$tag_name>";
-        }
-    }
-
-    private static function _html_attributes($attributes = '')
-    {
-        if (is_array($attributes)) {
-            $atts = '';
-            foreach ($attributes as $key => $val) {
-                if ($key == 'class' && is_array($val)) {
-                    $val = implode(' ', array_filter($val));
-                } elseif ($key == 'style' && is_array($val)) {
-                    $val = implode(';', array_filter($val));
-                } elseif (is_bool($val)) {
-                    // XHTML compatibility
-                    if ($val) {
-                        $val = $key;
-                    } else {
-                        continue;
-                    }
-                }
-
-                $atts .= " $key=\"$val\"";
-            }
-            return $atts;
-        }
-        return $attributes;
+        return $path;
     }
 
 }
