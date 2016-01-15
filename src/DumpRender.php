@@ -8,7 +8,7 @@ class DumpRender
     public $show_caller = true;
     public $html = true;
 
-    private $_config;
+    private $_config, $_recursion_objects;
 
     public function __construct()
     {
@@ -101,7 +101,7 @@ class DumpRender
 
             //Footer
             if (isset($step) && $show_caller) {
-                $result[] = "\n\n$action from {$step['file']}, line {$step['line']}";
+                $result[] = "\n$action from {$step['file']}, line {$step['line']}";
             }
         }
         return implode('', $result);
@@ -112,20 +112,17 @@ class DumpRender
         $memory_limit = $this->_return_bytes(ini_get('memory_limit'));
         if (memory_get_usage() > $memory_limit * 0.75) {
             $render = $this->_render_item($name, '&times;', 'Memory exhausted', $level, $metadata);
-        } else {
-            if ($data instanceof Exception) {
-                $render = $this->_render_exception($data, true, $level);
-            } elseif (is_object($data)) {
-                if (method_exists($data, '__debugInfo')) {
-                    $data = $data->__debugInfo();
-                }
-
-                $render = $this->_render_vars(true, $name, $data, $level, $metadata);
-            } elseif (is_array($data)) {
-                $render = $this->_render_vars(false, $name, $data, $level, $metadata);
-            } elseif (is_resource($data)) {
-                $render = $this->_render_item($name, 'Resource', get_resource_type($data), $level, $metadata);
-            } elseif (is_string($data)) {
+        } elseif ($data instanceof Exception) {
+            $render = $this->_render_exception($data, true, $level);
+        } elseif (is_object($data)) {
+            $render = $this->_render_vars($name, $data, $level, $metadata);
+        } elseif (is_array($data)) {
+            $render = $this->_render_vars($name, $data, $level, $metadata);
+        } elseif (is_resource($data)) {
+            $render = $this->_render_item($name, 'Resource', get_resource_type($data), $level, $metadata);
+        } elseif (is_string($data)) {
+            $html = '';
+            if ($this->html) {
                 if (preg_match('#^(\w+):\/\/([\w@][\w.:@]+)\/?[\w\.?=%&=\-@/$,]*$#', $data)) //URL
                 {
                     $html = $this->html_element(
@@ -139,49 +136,41 @@ class DumpRender
                         array('href' => "mailto:$data", 'target' => '_blank'),
                         htmlspecialchars($data)
                     );
-                } elseif ($this->html && (strpos($data, '<') !== false || strlen($data) > 15)) {//Only expand if is a long text or HTML code
+                } elseif (strpos($data, '<') !== false || strlen($data) > 15) {//Only expand if is a long text or HTML code
                     $html = $this->html_element(
                         'div',
                         array('class' => 'dump-string'),
                         htmlspecialchars(str_replace(array('{', '}'), array('&#123;', '&#125;'), $data))//Proteger plantillas Angular y Twig
                     );
                 }
-
-                $render = $this->_render_item(
-                    $name,
-                    'String',
-                    strlen($data) > 100 && $this->html ? substr($data, 0, 100) . '...' : $data,
-                    $level,
-                    $metadata,
-                    strlen($data) . ' characters',
-                    isset($html) ? $html : ''
-                );
-            } elseif (is_float($data)) {
-                $render = $this->_render_item($name, 'Float', $data, $level, $metadata);
-            } elseif (is_integer($data)) {
-                $render = $this->_render_item($name, 'Integer', $data, $level, $metadata);
-            } elseif (is_bool($data)) {
-                $render = $this->_render_item($name, 'Boolean', $data ? 'TRUE' : 'FALSE', $level, $metadata);
-            } elseif (is_null($data)) {
-                $render = $this->_render_item($name, 'NULL', null, $level, $metadata);
-            } else {
-                $render = $this->_render_item($name, '?', '<pre>' . print_r($data, true) . '</pre>', $level, $metadata);
             }
+
+            $render = $this->_render_item(
+                $name,
+                'String',
+                strlen($data) > 100 && $this->html ? substr($data, 0, 100) . '...' : $data,
+                $level,
+                $metadata,
+                strlen($data) . ' characters',
+                $html
+            );
+        } elseif (is_float($data)) {
+            $render = $this->_render_item($name, 'Float', $data, $level, $metadata);
+        } elseif (is_integer($data)) {
+            $render = $this->_render_item($name, 'Integer', $data, $level, $metadata);
+        } elseif (is_bool($data)) {
+            $render = $this->_render_item($name, 'Boolean', $data ? 'TRUE' : 'FALSE', $level, $metadata);
+        } elseif (is_null($data)) {
+            $render = $this->_render_item($name, 'NULL', null, $level, $metadata);
+        } else {
+            $render = $this->_render_item($name, '?', '<pre>' . print_r($data, true) . '</pre>', $level, $metadata);
         }
 
-        return is_array($render) ? implode('', $render) : $render;
+        return $render;
     }
 
-    private function _render_item(
-        $name,
-        $type,
-        $value,
-        $level,
-        $metadata = '',
-        $extra_info = '',
-        $inner_html = null,
-        $class = null
-    ) {
+    private function _render_item($name, $type, $value, $level, $metadata = '', $extra_info = '', $children = null, $class = null)
+    {
         $result = array();
 
         //Variable info
@@ -201,10 +190,9 @@ class DumpRender
         }
 
         //Child data
-        if (!empty($inner_html) && !is_array($inner_html)) {
-            $inner_html = array($inner_html);
+        if (!empty($children) && !is_array($children)) {
+            $children = array($children);
         }
-
 
         if ($this->html) {
             if (!isset($class)) {
@@ -213,7 +201,7 @@ class DumpRender
 
             $result[] = $this->html_element(
                 'div',
-                array('class' => array('dump-header', $class, empty($inner_html) ? '' : ' dump-collapsed')),
+                array('class' => array('dump-header', $class, empty($children) ? '' : ' dump-collapsed')),
                 array(
                     array('span', array('class' => 'dump-name'), htmlspecialchars($name)),
                     empty($info) ? '' : " ($info)",
@@ -222,10 +210,10 @@ class DumpRender
                 )
             );
 
-            if (!empty($inner_html)) {
+            if (!empty($children)) {
                 $result[] = "<div class=\"dump-content $class\"><ul class=\"dump-node\">";
 
-                foreach ($inner_html as $item) {
+                foreach ($children as $item) {
                     $result[] = '<li>';
                     $result[] = $item;
                     $result[] = '</li>';
@@ -233,13 +221,13 @@ class DumpRender
 
                 $result[] = "</ul></div>";
             }
-
-
         } else {
             $pad = str_pad('', $level * 4, ' ');
 
-            if ($name !== '' || $value !== '') {
-                $header = "$name => $value";
+            if ($name !== '') {
+                $header = "[$name] => $value";
+            } elseif ($value !== '') {
+                $header = $value;
             } else {
                 $header = '';
             }
@@ -250,14 +238,15 @@ class DumpRender
 
             $result[] = $pad . trim($header) . "\n";
 
-            if (!empty($inner_html)) {
-                $result[] = $pad . '(' . "\n";
+            if (!empty($children)) {
+                $result[] = $pad . ($type == 'Object' ? '{' : '(') . "\n";
 
-                foreach ($inner_html as $item) {
-                    $result[] = str_pad('', ($level + 1) * 4, ' ') . trim(html_entity_decode(strip_tags($item), ENT_QUOTES, 'UTF-8')) . "\n";
+                $child_pad = str_pad('', ($level + 1) * 4, ' ');
+                foreach ($children as $item) {
+                    $result[] = $child_pad . str_replace("\n", "\n$child_pad", trim(html_entity_decode(strip_tags($item), ENT_QUOTES, 'UTF-8'))) . "\n";
                 }
 
-                $result[] = $pad . ')' . "\n";
+                $result[] = $pad . ($type == 'Object' ? '}' : ')') . "\n";
             }
         }
         return implode('', $result);
@@ -265,7 +254,7 @@ class DumpRender
 
     private function _render_exception(Exception &$e, $show_location = true, $level = 0)
     {
-        $inner = array();
+        $children = array();
         $path = Dump::clean_path($e->getFile());
 
         //Exception name
@@ -273,7 +262,12 @@ class DumpRender
 
         //Basic info about the exception
         $message = Dump::clean_path($e->getMessage());
-        $inner[] = $this->html_element('div', array('class' => 'dump-exception'), htmlspecialchars($message));
+
+        if ($this->html) {
+            $children[] = $this->html_element('div', array('class' => 'dump-exception'), htmlspecialchars($message));
+        } else {
+            $children[] = $this->_render_item('Message', '', $message, $level + 1);
+        }
 
         //Source code
         if ($this->html) {
@@ -288,33 +282,37 @@ class DumpRender
                 $source = self::get_source($e->getFile(), $e->getLine());
             }
             if (!empty($source)) {
-                $inner[] = $this->_render_source_code('Source', $source, $path, $e->getLine());
+                $children[] = $this->_render_source_code('Source', $source, $path, $e->getLine());
             }
         } else {
+            if (!$show_location) {
+                $children[] = $this->_render_item('Location', '', $path . ':' . $e->getLine(), $level + 1);
+            }
+
             $backtrace = Dump::backtrace_small($e->getTrace());
         }
 
         //Context and data
         if (method_exists($e, 'getContext')) {
             $context = $e->getContext();
-            $inner[] = $this->_render('Context', $context, $level + 1);
+            $children[] = $this->_render('Context', $context, $level + 1);
         }
         if (method_exists($e, 'getData')) {
             $data = $e->getData();
-            $inner[] = $this->_render('Data', $data, $level + 1);
+            $children[] = $this->_render('Data', $data, $level + 1);
         }
 
         //Backtrace (en modo texto)
         if (!is_array($backtrace)) {
-            $inner[] = $this->_render_item('Backtrace', '', $backtrace, $level);
+            $children[] = $this->_render_item('Backtrace', '', $backtrace, $level + 1);
         }
 
         //Fields
-        $inner[] = $this->_render_vars(true, 'Fields', $e, $level + 1);
+        $children[] = $this->_render_vars('Fields', $e, $level + 1);
 
         //Backtrace
         if (is_array($backtrace)) {
-            $inner[] = $this->_render_vars(false, 'Backtrace', $backtrace, $level);
+            $children[] = $this->_render_vars('Backtrace', $backtrace, $level);
         }
 
         return $this->_render_item(
@@ -324,83 +322,93 @@ class DumpRender
             $level,
             '',
             '',
-            $inner,
+            $children,
             'exception'
         );
     }
 
-    private function _render_vars($is_object, $name, &$data, $level = 0, $metadata = '')
+    private function _render_vars($name, $data, $level = 0, $metadata = '')
     {
         //"Patch" to detect if the current array is a backtrace
+        $is_object = is_object($data);
+
         $is_backtrace = !$is_object && isset($data['function']) && is_string($data['function']) &&
                         isset($data['file']) && is_string($data['file']);
 
         $recursive = $level > 4 && $is_object && in_array($data, $this->_recursion_objects, true);
         if ($level < $this->_config['nesting_level'] && !$recursive) {
             //Render subitems
-            $inner_html = array();
+            $children = array();
             if ($is_object) {
                 $properties_count = 0;
-                $properties = array();
-                if (!($data instanceof stdClass) && class_exists('ReflectionClass', false)) {
-                    $current = new ReflectionClass($data);
-                    $private_data = null;
-                    while ($current !== false) {
-                        foreach ($current->getProperties() as $property) {
-                            /* @var $property ReflectionProperty */
-                            if (in_array($property->name, $properties)) {
-                                continue;
-                            }
+                $found_properties = array();
 
-                            //Get metadata
-                            $meta = array();
-                            if ($property->isStatic()) {
-                                $meta[] = 'Static';
-                            }
-                            if ($property->isPrivate()) {
-                                $meta[] = 'Private';
-                            }
-                            if ($property->isProtected()) {
-                                $meta[] = 'Protected';
-                            }
-                            if ($property->isPublic()) {
-                                $meta[] = 'Public';
-                            }
+                if (method_exists($data, '__debugInfo')) {
+                    $properties = $data->__debugInfo();
+                } else {
+                    if (!($data instanceof stdClass) && class_exists('ReflectionClass', false)) {
+                        $current = new ReflectionClass($data);
+                        $private_data = null;
+                        while ($current !== false) {
+                            foreach ($current->getProperties() as $property) {
+                                /* @var $property ReflectionProperty */
+                                if (in_array($property->name, $found_properties)) {
+                                    continue;
+                                }
 
-                            //Build field
-                            if ($property->isPublic()) {
-                                $value = $property->getValue($data);
-                            } else {
-                                if (method_exists($property, 'setAccessible')) {
-                                    $property->setAccessible(true);
+                                //Get metadata
+                                $meta = array();
+                                if ($property->isStatic()) {
+                                    $meta[] = 'Static';
+                                }
+                                if ($property->isPrivate()) {
+                                    $meta[] = 'Private';
+                                }
+                                if ($property->isProtected()) {
+                                    $meta[] = 'Protected';
+                                }
+                                if ($property->isPublic()) {
+                                    $meta[] = 'Public';
+                                }
+
+                                //Build field
+                                if ($property->isPublic()) {
                                     $value = $property->getValue($data);
                                 } else {
-                                    if (!isset($private_data)) { //Initialize object private data
-                                        $private_data = $this->_get_private_data($data, array());
-                                    }
-
-                                    if (array_key_exists($property->name, $private_data)) {
-                                        $value = $private_data[$property->name];
+                                    if (method_exists($property, 'setAccessible')) {
+                                        $property->setAccessible(true);
+                                        $value = $property->getValue($data);
                                     } else {
-                                        $value = '?';
+                                        if (!isset($private_data)) { //Initialize object private data
+                                            $private_data = $this->_get_private_data($data, array());
+                                        }
+
+                                        if (array_key_exists($property->name, $private_data)) {
+                                            $value = $private_data[$property->name];
+                                        } else {
+                                            $value = '?';
+                                        }
                                     }
                                 }
+                                $children[] = $this->_render($property->name, $value, $level + 1, implode(', ', $meta));
+                                $found_properties[] = $property->name;
                             }
-                            $inner_html[] = $this->_render($property->name, $value, $level + 1, implode(', ', $meta));
-                            $properties[] = $property->name;
+                            $current = $current->getParentClass();
+                            $properties_count = count($found_properties);
                         }
-                        $current = $current->getParentClass();
-                        $properties_count = count($properties);
                     }
+
+                    //Find runtime properties
+                    $properties = get_object_vars($data);
                 }
 
-                //Find runtime properties
-                foreach (get_object_vars($data) as $key => $value) {
-                    if (in_array($key, $properties)) {
+                //Add properties as child of the current node
+                foreach ($properties as $key => $value) {
+                    if (in_array($key, $found_properties)) {
                         continue;
                     }
 
-                    $inner_html[] = $this->_render($key, $value, $level + 1);
+                    $children[] = $this->_render($key, $value, $level + 1);
                     $properties_count++;
                 }
 
@@ -408,29 +416,20 @@ class DumpRender
             } else { //Array
                 foreach ($data as $key => &$value) {
                     if ($is_backtrace && $key == 'source' && is_string($value) && !empty($value)) {
-                        $inner_html[] = $this->_render_source_code($key, $value, $level, $data['file'], $data['line']);
-                    } else {
-                        if (!$is_backtrace || !in_array($key, array('function', 'file', 'line'))) {
-                            $inner_html[] = $this->_render($key, $value, $level + 1);
-                        }
+                        $children[] = $this->_render_source_code($key, $value, $level, $data['file'], $data['line']);
+                    } elseif (!$is_backtrace || !in_array($key, array('function', 'file', 'line'))) {
+                        $children[] = $this->_render($key, $value, $level + 1);
                     }
                 }
             }
         } else {
-            $inner_html = '&infin;';
+            $children = '&infin;';
         }
+
 
         //Render item
         if ($is_object) {
-            return $this->_render_item(
-                $name,
-                'Object',
-                get_class($data),
-                $level,
-                $metadata,
-                isset($properties_count) ? "$properties_count fields" : '',
-                $inner_html
-            );
+            return $this->_render_item($name, 'Object', get_class($data), $level, $metadata, isset($properties_count) ? "$properties_count fields" : '', $children);
         } else {
             if ($is_backtrace) {
                 $type = $data['function'];
@@ -440,7 +439,7 @@ class DumpRender
                 $info = count($data) . ' elements';
             }
 
-            return $this->_render_item($name, $type, '', $level, $metadata, $info, $inner_html);
+            return $this->_render_item($name, $type, '', $level, $metadata, $info, $children);
         }
     }
 
@@ -504,7 +503,7 @@ class DumpRender
     /**
      * Convert PHP config size to bytes (11M -> 11*1024*1024)
      *
-     * @param type $val
+     * @param string $val
      *
      * @return int
      */

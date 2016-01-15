@@ -16,7 +16,10 @@ abstract class Dump
     {
         if (func_num_args() == 0) {
             return [
-                'static_url'=>self::$_static_url,   'special_paths'=>self::$_special_paths,  'nesting_level'=> self::$_nesting_level];
+                'static_url'    => self::$_static_url,
+                'special_paths' => self::$_special_paths,
+                'nesting_level' => self::$_nesting_level
+            ];
         }
 
         self::$_static_url = $static_url;
@@ -40,6 +43,7 @@ abstract class Dump
 
         $render = new DumpRender();
         $render->html = true;
+        $render->show_caller = false;
 
         $data = func_get_args();
         echo $render->render($data);
@@ -55,6 +59,7 @@ abstract class Dump
         self::_load_helpers();
 
         $render = new DumpRender();
+        $render->show_caller = false;
 
         $data = func_get_args();
         return $render->render($data);
@@ -71,6 +76,7 @@ abstract class Dump
 
         $render = new DumpRender();
         $render->html = false;
+        $render->show_caller = false;
 
         $data = func_get_args();
         return $render->render($data);
@@ -89,6 +95,7 @@ abstract class Dump
         self::_load_helpers();
 
         $render = new DumpRender();
+        $render->show_caller = $show_caller;
         return $render->render($name, $value);
     }
 
@@ -239,7 +246,7 @@ abstract class Dump
         }
         $extra .= DumpRender::html_attributes($attrs);
         return "<$tag class=\"dump-code\" data-language=\"$language\" data-theme=\"$theme\" $extra>$code</$tag>" .
-               DumpRender::assets_loader('init_dump($(".dump-code"),{static_url:"' . self::$_static_url . '"})',self::$_static_url);
+               DumpRender::assets_loader('init_dump($(".dump-code"),{static_url:"' . self::$_static_url . '"})', self::$_static_url);
     }
 
     /**
