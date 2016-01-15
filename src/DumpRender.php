@@ -224,16 +224,17 @@ class DumpRender
         } else {
             $pad = str_pad('', $level * 4, ' ');
 
+            $header = '';
             if ($name !== '') {
-                $header = "[$name] => $value";
-            } elseif ($value !== '') {
-                $header = $value;
-            } else {
-                $header = '';
+                $header = "[$name] => ";
             }
 
+            //Pad value's line breaks
+            $header_offset = strlen($header);
+            $header .= str_replace("\n", "\n" . str_pad('', ($level * 4) + $header_offset, ' '), $value);
+
             if (!empty($info)) {
-                $header = trim($header) . " (" . html_entity_decode(strip_tags($info), ENT_QUOTES, 'UTF-8') . ")";
+                $header = trim($header) . " (" . trim(html_entity_decode(strip_tags($info), ENT_QUOTES, 'UTF-8')) . ")";
             }
 
             $result[] = $pad . trim($header) . "\n";
