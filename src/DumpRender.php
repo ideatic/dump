@@ -36,7 +36,7 @@ class DumpRender
         //Render data
         if (count($data) == 1 && ($e = reset($data)) instanceof Exception) {
             $this->_recursion_objects = array();
-            $inner = array($this->_render_exception($e, false));
+            $inner = array($this->_render_exception('', $e));
 
             //Caller info
             $show_caller = true;
@@ -113,7 +113,7 @@ class DumpRender
         if (memory_get_usage() > $memory_limit * 0.75) {
             $render = $this->_render_item($name, '&times;', 'Memory exhausted', $level, $metadata);
         } elseif ($data instanceof Exception) {
-            $render = $this->_render_exception($data, true, $level);
+            $render = $this->_render_exception($name, $data, $level);
         } elseif (is_object($data)) {
             $render = $this->_render_vars($name, $data, $level, $metadata);
         } elseif (is_array($data)) {
@@ -222,7 +222,6 @@ class DumpRender
                 $result[] = "</ul></div>";
             }
         } else {
-            $pad = str_pad('', $level * 4, ' ');
 
             $header = '';
             if ($name !== '') {
@@ -237,37 +236,32 @@ class DumpRender
                 $header = trim($header) . " (" . trim(html_entity_decode(strip_tags($info), ENT_QUOTES, 'UTF-8')) . ")";
             }
 
-            $result[] = $pad . trim($header) . "\n";
+            $result[] = trim($header) . "\n";
 
             if (!empty($children)) {
-                $result[] = $pad . ($type == 'Object' ? '{' : '(') . "\n";
+                $result[] = ($type == 'Object' ? '{' : '(') . "\n";
 
-                $child_pad = str_pad('', ($level + 1) * 4, ' ');
+                $pad = '    ';
                 foreach ($children as $item) {
-                    $result[] = $child_pad . str_replace("\n", "\n$child_pad", trim(html_entity_decode(strip_tags($item), ENT_QUOTES, 'UTF-8'))) . "\n";
+                    $result[] = $pad . str_replace("\n", "\n$pad", trim(html_entity_decode(strip_tags($item), ENT_QUOTES, 'UTF-8'))) . "\n";
                 }
 
-                $result[] = $pad . ($type == 'Object' ? '}' : ')') . "\n";
+                $result[] = ($type == 'Object' ? '}' : ')') . "\n";
             }
         }
         return implode('', $result);
     }
 
-    private function _render_exception(Exception &$e, $show_location = true, $level = 0)
+    private function _render_exception($name, Exception $e, $level = 0)
     {
         $children = array();
-        $path = Dump::clean_path($e->getFile());
-
-        //Exception name
-        $name = get_class($e);
 
         //Basic info about the exception
+        $path = Dump::clean_path($e->getFile());
         $message = Dump::clean_path($e->getMessage());
 
         if ($this->html) {
             $children[] = $this->html_element('div', array('class' => 'dump-exception'), htmlspecialchars($message));
-        } else {
-            $children[] = $this->_render_item('Message', '', $message, $level + 1);
         }
 
         //Source code
@@ -286,9 +280,7 @@ class DumpRender
                 $children[] = $this->_render_source_code('Source', $source, $path, $e->getLine());
             }
         } else {
-            if (!$show_location) {
-                $children[] = $this->_render_item('Location', '', $path . ':' . $e->getLine(), $level + 1);
-            }
+            $children[] = $this->_render_item('Location', '', $path . ':' . $e->getLine(), $level + 1);
 
             $backtrace = Dump::backtrace_small($e->getTrace());
         }
@@ -309,26 +301,21 @@ class DumpRender
         }
 
         //Fields
-        $children[] = $this->_render_vars('Fields', $e, $level + 1);
+        $children[] = $this->_render_vars('Fields', $e, $level + 1, '', ['message']);
 
         //Backtrace
         if (is_array($backtrace)) {
             $children[] = $this->_render_vars('Backtrace', $backtrace, $level);
         }
 
-        return $this->_render_item(
-            $name,
-            $show_location ? ($path . ':' . $e->getLine()) : '',
-            strip_tags($message),
-            $level,
-            '',
-            '',
-            $children,
-            'exception'
-        );
+        if ($level == 0) {
+            return $this->_render_item(get_class($e), '', strip_tags($message), $level, '', '', $children, 'exception');
+        } else {
+            return $this->_render_item($name, get_class($e), strip_tags($message), $level, '', '', $children, 'exception');
+        }
     }
 
-    private function _render_vars($name, $data, $level = 0, $metadata = '')
+    private function _render_vars($name, $data, $level = 0, $metadata = '', $ignore_properties = array())
     {
         //"Patch" to detect if the current array is a backtrace
         $is_object = is_object($data);
@@ -337,13 +324,12 @@ class DumpRender
                         isset($data['file']) && is_string($data['file']);
 
         $recursive = $level > 4 && $is_object && in_array($data, $this->_recursion_objects, true);
+
         if ($level < $this->_config['nesting_level'] && !$recursive) {
             //Render subitems
             $children = array();
             if ($is_object) {
                 $properties_count = 0;
-                $found_properties = array();
-
                 if (method_exists($data, '__debugInfo')) {
                     $properties = $data->__debugInfo();
                 } else {
@@ -353,7 +339,7 @@ class DumpRender
                         while ($current !== false) {
                             foreach ($current->getProperties() as $property) {
                                 /* @var $property ReflectionProperty */
-                                if (in_array($property->name, $found_properties)) {
+                                if (in_array($property->name, $ignore_properties)) {
                                     continue;
                                 }
 
@@ -392,10 +378,10 @@ class DumpRender
                                     }
                                 }
                                 $children[] = $this->_render($property->name, $value, $level + 1, implode(', ', $meta));
-                                $found_properties[] = $property->name;
+                                $ignore_properties[] = $property->name;
                             }
                             $current = $current->getParentClass();
-                            $properties_count = count($found_properties);
+                            $properties_count = count($ignore_properties);
                         }
                     }
 
@@ -405,7 +391,7 @@ class DumpRender
 
                 //Add properties as child of the current node
                 foreach ($properties as $key => $value) {
-                    if (in_array($key, $found_properties)) {
+                    if (in_array($key, $ignore_properties)) {
                         continue;
                     }
 
@@ -416,8 +402,12 @@ class DumpRender
                 $this->_recursion_objects[] = $data;
             } else { //Array
                 foreach ($data as $key => &$value) {
+                    if (in_array($key, $ignore_properties)) {
+                        continue;
+                    }
+
                     if ($is_backtrace && $key == 'source' && is_string($value) && !empty($value)) {
-                        $children[] = $this->_render_source_code($key, $value, $level, $data['file'], $data['line']);
+                        $children[] = $this->_render_source_code($key, $value, $level + 1, $data['file'], $data['line']);
                     } elseif (!$is_backtrace || !in_array($key, array('function', 'file', 'line'))) {
                         $children[] = $this->_render($key, $value, $level + 1);
                     }
