@@ -9,10 +9,10 @@ abstract class Dump
 {
 
     private static $_static_url = '/dump-static';
-    private static $_special_paths = array();
+    private static $_special_paths = [];
     private static $_nesting_level = 5;
 
-    public static function config($static_url = '/dump-static', $special_paths = array(), $nesting_level = 5)
+    public static function config($static_url = '/dump-static', $special_paths = [], $nesting_level = 5)
     {
         if (func_num_args() == 0) {
             return [
@@ -121,12 +121,12 @@ abstract class Dump
         }
 
         //"Special" functions
-        $special_functions = array('include', 'include_once', 'require', 'require_once');
+        $special_functions = ['include', 'include_once', 'require', 'require_once'];
 
-        $output = array();
+        $output = [];
         foreach ($trace as $i => $step) {
             //Get data from the current step
-            foreach (array('class', 'type', 'function', 'file', 'line', 'args', 'object') as $param) {
+            foreach (['class', 'type', 'function', 'file', 'line', 'args', 'object'] as $param) {
                 $$param = isset($step[$param]) ? $step[$param] : null;
             }
 
@@ -140,10 +140,10 @@ abstract class Dump
 
             //Arguments
             $function_call = $class . $type . $function;
-            $function_args = array();
+            $function_args = [];
             if (isset($args)) {
                 if (in_array($function, $special_functions)) {
-                    $function_args = array(self::clean_path($args[0]));
+                    $function_args = [self::clean_path($args[0])];
                 } else {
                     if (!function_exists($function) || strpos($function, '{closure}') !== false) {
                         $params = null;
@@ -174,18 +174,18 @@ abstract class Dump
                     }
                 }
             }
-            $info = array(
+            $info = [
                 'function' => $function_call,
                 'args'     => $function_args,
                 'file'     => self::clean_path($file),
                 'line'     => $line,
                 'source'   => $source,
-            );
+            ];
 
             if (isset($object)) {
-                $info = array(
+                $info = [
                             'object' => $object
-                        ) + $info;
+                        ] + $info;
             }
 
             $output[] = $info;
@@ -200,25 +200,30 @@ abstract class Dump
      *
      * @return string
      */
-    public static function backtrace_small(array $trace = null)
+    public static function backtrace_small(array $trace = null, $html = true)
     {
         if ($trace === null) {
             $trace = debug_backtrace();
         }
 
-        $output = array();
+        $output = [];
         foreach ($trace as $i => $step) {
             //Get data from the current step
-            foreach (array('class', 'type', 'function', 'file', 'line', 'args') as $param) {
+            foreach (['class', 'type', 'function', 'file', 'line', 'args'] as $param) {
                 $$param = isset($step[$param]) ? $step[$param] : '';
             }
 
             //Generate HTML
             self::_load_helpers();
-            $output[] = DumpRender::html_element('abbr', array('title' => "$file:$line"), $class . $type . $function);
+
+            if ($html) {
+                $output[] = DumpRender::html_element('abbr', ['title' => "$file:$line"], $class . $type . $function);
+            } else {
+                $output[] = $class . $type . $function . '(' . $line . ')';
+            }
         }
 
-        return implode(' &rarr; ', array_reverse($output));
+        return implode(' → ', array_reverse($output));
     }
 
     /**
@@ -229,7 +234,7 @@ abstract class Dump
      *
      * @return string
      */
-    public static function source($code, $language = 'php', $editable = false, $attrs = array(), $theme = 'default')
+    public static function source($code, $language = 'php', $editable = false, $attrs = [], $theme = 'default')
     {
         self::_load_helpers();
 
@@ -297,7 +302,7 @@ if (!function_exists('dump')) {
      */
     function dump()
     {
-        call_user_func_array(array('Dump', 'show'), func_get_args());
+        call_user_func_array(['Dump', 'show'], func_get_args());
     }
 
 }

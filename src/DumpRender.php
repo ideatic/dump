@@ -332,6 +332,10 @@ class DumpRender
                 $properties_count = 0;
                 if (method_exists($data, '__debugInfo')) {
                     $properties = $data->__debugInfo();
+
+                    if (!is_array($properties)) {
+                        $properties = ['' => $properties];
+                    }
                 } else {
                     if (!($data instanceof stdClass) && class_exists('ReflectionClass', false)) {
                         $current = new ReflectionClass($data);
