@@ -12,6 +12,7 @@
     ],
     "autoload": {
         "classmap": ["src/"],
+        "exclude-from-classmap": ["src/DumpRender"]
     },
     "keywords": ["var_dump", "debug"]
 }
