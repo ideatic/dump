@@ -242,13 +242,12 @@ class DumpRender
                     $type_info = false;
                 } elseif ($type == 'Integer' || $type == 'Boolean' || $type == 'Float') {
                     $result[] = $value;
-                    $type_info = false;
 
-                    if ($type == 'Float' && ctype_digit($value)) {
-                        $type_info = true;
+                    if (!($type == 'Float' && ctype_digit("{$value}"))) {//Si es float pero sin decimales, mostrar el tipo
+                        $type_info = false;
                     }
                 } elseif ($type == 'Object') {
-                    $type_info = str_replace('Object, ', $value.', ', $type_info);
+                    $type_info = str_replace('Object, ', $value . ', ', $type_info);
                 } elseif ($type == 'Array') {
                     $type_info = str_replace('Array, ', '', $type_info);//Ya se diferencian arrays de objetos
                 } else {
@@ -286,25 +285,20 @@ class DumpRender
 
 
                 $pad = "\t";//$pad = '    ';
-
-                end($children);
-                $last = key($children);
-
                 foreach ($children as $k => $item) {
-                    $result[] = $pad . str_replace("\n", "\n{$pad}", trim(html_entity_decode(strip_tags($item), ENT_QUOTES, 'UTF-8')));
-
-                    if ($this->format == 'json' && $k != $last) {
-                        $result[] = ',';
-                    }
-
-                    $result[] = "\n";
+                    $children[$k] = $pad . str_replace("\n", "\n{$pad}", trim(html_entity_decode(strip_tags($item), ENT_QUOTES, 'UTF-8')));
                 }
+                $result[] = implode($this->format == 'json' ? ",\n" : "\n", $children);
 
-                $result[] = ($type == 'Array' ? ']' : '}');
-
-                $result[] = "\n";
-            } elseif ($this->format == 'json' && $type == 'Array') {
-                $result[] = "[]\n";
+                $result[] = "\n" . ($type == 'Array' ? ']' : '}') . "\n";
+            } elseif ($this->format == 'json') {
+                if ($type == 'Array') {
+                    $result[] = "[]\n";
+                } elseif ($type == 'Object') {
+                    $result[] = "{} //{$type_info}\n";
+                } elseif ($type_info) {
+                    $result[] = " //{$type_info}";
+                }
             }
         }
 
@@ -444,6 +438,7 @@ class DumpRender
                                         }
                                     }
                                 }
+
                                 $children[] = $this->_render($property->name, $value, $level + 1, implode(', ', $meta));
                                 $ignore_properties[] = $property->name;
                             }
@@ -468,15 +463,47 @@ class DumpRender
 
                 $this->_recursion_objects[] = $data;
             } else { //Array
+                $ignore_keys = false;
+                $all_scalar = false;
+                if ($this->format == 'json') {//Ignore keys in normal zero-based indexed arrays
+                    $i = 0;
+                    $ignore_keys = true;
+                    $all_scalar = true;
+                    foreach ($data as $key => $value) {
+                        if ($i !== $key) {
+                            $ignore_keys = false;
+                            break;
+                        }
+                        if (!is_scalar($value)) {
+                            $all_scalar = false;
+                        }
+                        $i++;
+                    }
+                }
+
                 foreach ($data as $key => &$value) {
                     if (in_array($key, $ignore_properties)) {
                         continue;
                     }
 
-                    if ($is_backtrace && $key == 'source' && is_string($value) && !empty($value)) {
-                        $children[] = $this->_render_source_code($key, $value, $level + 1, $data['file'], $data['line']);
-                    } elseif (!$is_backtrace || !in_array($key, ['function', 'file', 'line'])) {
-                        $children[] = $this->_render($key, $value, $level + 1);
+                    $children[] = $this->_render($ignore_keys ? '' : $key, $value, $level + 1);
+
+                    /* if ($is_backtrace && $key == 'source' && is_string($value) && !empty($value)) {
+                         $children[] = $this->_render_source_code($key, $value, $level + 1, $data['file'], $data['line']);
+                     } elseif (!$is_backtrace || !in_array($key, ['function', 'file', 'line'])) {
+                         $children[] = $this->_render($ignore_keys ? '' : $key, $value, $level + 1);
+                     }*/
+                }
+
+
+                if ($this->format == 'json' && $ignore_keys && $all_scalar) {
+                    $total_length = 0;
+                    foreach ($children as $child) {
+                        $total_length += strlen($child);
+                    }
+
+                    if ($total_length < 450) {
+                        return "{$name}: [" . str_replace(["\n", "\t"], '', implode(', ', $children)) . ']';
                     }
                 }
             }
@@ -493,7 +520,7 @@ class DumpRender
                 $info = (isset($data['args']) ? count($data['args']) : 0) . ' parameters';
             } else {
                 $type = 'Array';
-                $info = count($data) . ' elements';
+                $info = count($data) . ' items';
             }
 
             return $this->_render_item($name, $type, '', $level, $metadata, $info, $children);
