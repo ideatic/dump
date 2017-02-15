@@ -362,7 +362,24 @@ class DumpRender
 
         //Backtrace
         if (is_array($backtrace)) {
-            $children[] = $this->_render_vars('Backtrace', $backtrace, $level);
+            $backtrace_children = [];
+
+            foreach ($backtrace as $step_index => $step) {
+                $step_children = [];
+                foreach ($step as $k => $v) {
+                    if ($k == 'source' && is_string($v) && !empty($v)) {
+                        $step_children[] = $this->_render_source_code($k, $v, $level + 1, $step['file'], $step['line']);
+                    } elseif (!in_array($k, ['function', 'file', 'line'])) {
+                        $step_children[] = $this->_render($k, $v, $level + 1);
+                    }
+                }
+
+
+                $info = (isset($step['args']) ? count($step['args']) : 0) . ' parameters';
+                $backtrace_children[] = $this->_render_item($step_index, $step['function'], '', $level, '', $info, $step_children);
+            }
+
+            $children[] = $this->_render_item('Backtrace', count($backtrace) . ' steps', '', $level, '', '', $backtrace_children);
         }
 
         if ($level == 0) {
@@ -374,11 +391,7 @@ class DumpRender
 
     private function _render_vars($name, $data, $level = 0, $metadata = '', $ignore_properties = [])
     {
-        //"Patch" to detect if the current array is a backtrace
         $is_object = is_object($data);
-
-        $is_backtrace = !$is_object && isset($data['function']) && is_string($data['function']) &&
-                        isset($data['file']) && is_string($data['file']);
 
         $recursive = $level > 4 && $is_object && in_array($data, $this->_recursion_objects, true);
 
@@ -487,14 +500,7 @@ class DumpRender
                     }
 
                     $children[] = $this->_render($ignore_keys ? '' : $key, $value, $level + 1);
-
-                    /* if ($is_backtrace && $key == 'source' && is_string($value) && !empty($value)) {
-                         $children[] = $this->_render_source_code($key, $value, $level + 1, $data['file'], $data['line']);
-                     } elseif (!$is_backtrace || !in_array($key, ['function', 'file', 'line'])) {
-                         $children[] = $this->_render($ignore_keys ? '' : $key, $value, $level + 1);
-                     }*/
                 }
-
 
                 if ($this->format == 'json' && $ignore_keys && $all_scalar) {
                     $total_length = 0;
@@ -515,15 +521,7 @@ class DumpRender
         if ($is_object) {
             return $this->_render_item($name, 'Object', get_class($data), $level, $metadata, isset($properties_count) ? "$properties_count fields" : '', $children);
         } else {
-            if ($is_backtrace) {
-                $type = $data['function'];
-                $info = (isset($data['args']) ? count($data['args']) : 0) . ' parameters';
-            } else {
-                $type = 'Array';
-                $info = count($data) . ' items';
-            }
-
-            return $this->_render_item($name, $type, '', $level, $metadata, $info, $children);
+            return $this->_render_item($name, 'Array', '', $level, $metadata, count($data) . ' items', $children);
         }
     }
 
