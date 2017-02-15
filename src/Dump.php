@@ -10,21 +10,26 @@ abstract class Dump
 
     private static $_static_url = '/dump-static';
     private static $_special_paths = [];
-    private static $_nesting_level = 5;
+    public static $nesting_level = 5;
 
     public static function config($static_url = '/dump-static', $special_paths = [], $nesting_level = 5)
     {
-        if (func_num_args() == 0) {
-            return [
-                'static_url'    => self::$_static_url,
-                'special_paths' => self::$_special_paths,
-                'nesting_level' => self::$_nesting_level
-            ];
-        }
-
         self::$_static_url = $static_url;
         self::$_special_paths = $special_paths;
-        self::$_nesting_level = $nesting_level;
+        self::$nesting_level = $nesting_level;
+    }
+
+    /**
+     * @return DumpRender
+     */
+    private static function _prepare_render()
+    {
+        $render = new DumpRender();
+        $render->format = 'html';
+        $render->nesting_level = self::$nesting_level;
+        $render->assets_url = self::$_static_url;
+
+        return $render;
     }
 
     private static function _load_helpers()
@@ -41,8 +46,7 @@ abstract class Dump
     {
         self::_load_helpers();
 
-        $render = new DumpRender();
-        $render->html = true;
+        $render = self::_prepare_render();
         $render->show_caller = false;
 
         $data = func_get_args();
@@ -58,7 +62,7 @@ abstract class Dump
     {
         self::_load_helpers();
 
-        $render = new DumpRender();
+        $render = self::_prepare_render();
         $render->show_caller = false;
 
         $data = func_get_args();
@@ -70,16 +74,17 @@ abstract class Dump
      *
      * @return string
      */
-    public static function print_r()
+    public static function print_r($data, $show_types = true, $nesting_level = null, $format = 'json')
     {
         self::_load_helpers();
 
-        $render = new DumpRender();
-        $render->html = false;
+        $render = self::_prepare_render();
+        $render->format = $format;
         $render->show_caller = false;
+        $render->show_types = $show_types;
+        $render->nesting_level = isset($nesting_level) ? $nesting_level : self::$nesting_level;
 
-        $data = func_get_args();
-        return $render->render($data);
+        return $render->render([$data]);
     }
 
     /**
@@ -94,7 +99,7 @@ abstract class Dump
     {
         self::_load_helpers();
 
-        $render = new DumpRender();
+        $render = self::_prepare_render();
         $render->show_caller = $show_caller;
         return $render->render($name, $value);
     }
@@ -200,14 +205,15 @@ abstract class Dump
      *
      * @return string
      */
-    public static function backtrace_small(array $trace = null, $html = true)
+    public static function backtrace_small(array $trace = null, $html = true, $rtl = false)
     {
-        if ($trace === null) {
-            $trace = debug_backtrace();
+        if (!$trace) {
+            $trace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS);
+            array_shift($trace);//Eliminar llamada a backtrace_small
         }
 
         $output = [];
-        foreach ($trace as $i => $step) {
+        foreach ($trace as $step) {
             //Get data from the current step
             foreach (['class', 'type', 'function', 'file', 'line', 'args'] as $param) {
                 $$param = isset($step[$param]) ? $step[$param] : '';
@@ -223,7 +229,11 @@ abstract class Dump
             }
         }
 
-        return implode(' → ', array_reverse($output));
+        if ($rtl) {
+            return implode(' → ', array_reverse($output));
+        } else {
+            return implode(' ← ', $output);
+        }
     }
 
     /**

@@ -6,14 +6,22 @@
 class DumpRender
 {
     public $show_caller = true;
-    public $html = true;
+    public $show_types = true;
+    public $format = 'html';
 
-    private $_config, $_recursion_objects;
+    /**
+     * Max nesting level to render
+     * @var int
+     */
+    public $nesting_level;
 
-    public function __construct()
-    {
-        $this->_config = Dump::config();
-    }
+    /**
+     * URL to Dump assets
+     * @var string
+     */
+    public $assets_url;
+
+    private $_recursion_objects;
 
     /**
      * Gets information about one or more PHP variables and return it in HTML code.
@@ -29,14 +37,14 @@ class DumpRender
         if (is_array($name)) {
             $data = $name;
         } else {
-            $data = array($name => $value);
+            $data = [$name => $value];
         }
 
         $show_caller = $this->show_caller;
         //Render data
         if (count($data) == 1 && ($e = reset($data)) instanceof Exception) {
-            $this->_recursion_objects = array();
-            $inner = array($this->_render_exception('', $e));
+            $this->_recursion_objects = [];
+            $inner = [$this->_render_exception('', $e)];
 
             //Caller info
             $show_caller = true;
@@ -44,11 +52,11 @@ class DumpRender
             $step['file'] = Dump::clean_path($e->getFile());
             $step['line'] = $e->getLine();
         } else {
-            $inner = array();
+            $inner = [];
             foreach ($data as $name => $value) {
-                $this->_recursion_objects = array();
+                $this->_recursion_objects = [];
 
-                $inner[] = $this->_render(empty($name) || is_numeric($name) ? ($this->html ? '...' : '') : $name, $value);
+                $inner[] = $this->_render(empty($name) || is_numeric($name) ? ($this->format == 'html' ? '...' : '') : $name, $value);
 
                 $this->_recursion_objects = null;
             }
@@ -68,13 +76,13 @@ class DumpRender
             }
         }
 
-        $result = array();
-        if ($this->html) {
+        $result = [];
+        if ($this->format == 'html') {
             //Generate HTML
             $result[] = '<div class="dump">';
 
             //Loader
-            $result[] = self::assets_loader('init_dump($(".dump"),{static_url:"' . $this->_config['static_url'] . '"})', $this->_config['static_url']);
+            $result[] = self::assets_loader('init_dump($(".dump"),{static_url:"' . $this->assets_url . '"})', $this->assets_url);
 
             //Body
             $result[] = '<ul class="dump-node dump-firstnode"><li>';
@@ -85,23 +93,17 @@ class DumpRender
 
             //Footer
             if (isset($step) && $show_caller) {
-                $result[] = $this->html_element(
-                    'div',
-                    array('class' => 'dump-footer'),
-                    "$action from {$step['file']}, line {$step['line']}"
-                );
+                $result[] = $this->html_element('div', ['class' => 'dump-footer'], "{$action} from {$step['file']}, line {$step['line']}");
             }
 
             $result[] = '</div>';
         } else {
             //Body
-            foreach ($inner as $item) {
-                $result[] = $item;
-            }
+            $result = $inner;
 
             //Footer
             if (isset($step) && $show_caller) {
-                $result[] = "\n$action from {$step['file']}, line {$step['line']}";
+                $result[] = "\n{$action} from {$step['file']}, line {$step['line']}";
             }
         }
         return implode('', $result);
@@ -122,25 +124,25 @@ class DumpRender
             $render = $this->_render_item($name, 'Resource', get_resource_type($data), $level, $metadata);
         } elseif (is_string($data)) {
             $html = '';
-            if ($this->html) {
+            if ($this->format == 'html') {
                 if (preg_match('#^(\w+):\/\/([\w@][\w.:@]+)\/?[\w\.?=%&=\-@/$,]*$#', $data)) //URL
                 {
                     $html = $this->html_element(
                         'a',
-                        array('href' => $data, 'target' => '_blank'),
+                        ['href' => $data, 'target' => '_blank'],
                         htmlspecialchars($data)
                     );
                 } elseif (preg_match('#^([a-zA-Z0-9_\-\.]+)@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.)|(([a-zA-Z0-9\-]+\.)+))([a-zA-Z]{2,4}|[0-9]{1,3})$#', $data)) {//Email
                     $html = $this->html_element(
                         'a',
-                        array('href' => "mailto:$data", 'target' => '_blank'),
+                        ['href' => "mailto:$data", 'target' => '_blank'],
                         htmlspecialchars($data)
                     );
                 } elseif (strpos($data, '<') !== false || strlen($data) > 15) {//Only expand if is a long text or HTML code
                     $html = $this->html_element(
                         'div',
-                        array('class' => 'dump-string'),
-                        htmlspecialchars(str_replace(array('{', '}'), array('&#123;', '&#125;'), $data))//Proteger plantillas Angular y Twig
+                        ['class' => 'dump-string'],
+                        htmlspecialchars(str_replace(['{', '}'], ['&#123;', '&#125;'], $data))//Proteger plantillas Angular y Twig
                     );
                 }
             }
@@ -148,7 +150,7 @@ class DumpRender
             $render = $this->_render_item(
                 $name,
                 'String',
-                strlen($data) > 100 && $this->html ? substr($data, 0, 100) . '...' : $data,
+                strlen($data) > 100 && $this->format == 'html' ? substr($data, 0, 100) . '...' : $data,
                 $level,
                 $metadata,
                 strlen($data) . ' characters',
@@ -171,14 +173,12 @@ class DumpRender
 
     private function _render_item($name, $type, $value, $level, $metadata = '', $extra_info = '', $children = null, $class = null)
     {
-        $result = array();
-
         //Variable info
         $info = '';
         if (!empty($type)) {
             $info .= $this->html_element(
                 'span',
-                array('class' => 'dump-type'),
+                ['class' => 'dump-type'],
                 !empty($metadata) ? "$metadata, $type" : $type
             );
         }
@@ -186,28 +186,29 @@ class DumpRender
             if (!empty($info)) {
                 $info .= ', ';
             }
-            $info .= $this->html_element('span', array('class' => 'dump-info'), $extra_info);
+            $info .= $this->html_element('span', ['class' => 'dump-info'], $extra_info);
         }
 
         //Child data
         if (!empty($children) && !is_array($children)) {
-            $children = array($children);
+            $children = [$children];
         }
 
-        if ($this->html) {
+        $result = [];
+        if ($this->format == 'html') {
             if (!isset($class)) {
                 $class = strtolower($type);
             }
 
             $result[] = $this->html_element(
                 'div',
-                array('class' => array('dump-header', $class, empty($children) ? '' : ' dump-collapsed')),
-                array(
-                    array('span', array('class' => 'dump-name'), htmlspecialchars($name)),
+                ['class' => ['dump-header', $class, empty($children) ? '' : ' dump-collapsed']],
+                [
+                    ['span', ['class' => 'dump-name'], htmlspecialchars($name)],
                     empty($info) ? '' : " ($info)",
                     ' ',
-                    array('span', array('class' => 'dump-value'), htmlspecialchars($value)),
-                )
+                    ['span', ['class' => 'dump-value'], htmlspecialchars($value)],
+                ]
             );
 
             if (!empty($children)) {
@@ -222,50 +223,108 @@ class DumpRender
                 $result[] = "</ul></div>";
             }
         } else {
-
-            $header = '';
             if ($name !== '') {
-                $header = "[$name] => ";
+                if ($this->format == 'json') {
+                    $result[] = "{$name}: ";
+                } else {
+                    $result[] = "[{$name}] => ";
+                }
             }
 
-            //Pad value's line breaks
-            $header_offset = strlen($header);
-            $header .= str_replace("\n", "\n" . str_pad('', ($level * 4) + $header_offset, ' '), $value);
+            //Value
+            $type_info = !empty($info) && $this->show_types ? trim(html_entity_decode(strip_tags($info), ENT_QUOTES, 'UTF-8')) : '';
+            if ($this->format == 'json') {
+                if ($type == 'String') {
+                    $result[] = "\"{$value}\"";
+                    $type_info = false;
+                } elseif ($type == 'NULL') {
+                    $result[] = 'NULL';
+                    $type_info = false;
+                } elseif ($type == 'Integer' || $type == 'Boolean' || $type == 'Float') {
+                    $result[] = $value;
+                    $type_info = false;
 
-            if (!empty($info)) {
-                $header = trim($header) . " (" . trim(html_entity_decode(strip_tags($info), ENT_QUOTES, 'UTF-8')) . ")";
+                    if ($type == 'Float' && ctype_digit($value)) {
+                        $type_info = true;
+                    }
+                } elseif ($type == 'Object') {
+                    $type_info = str_replace('Object, ', $value.', ', $type_info);
+                } elseif ($type == 'Array') {
+                    $type_info = str_replace('Array, ', '', $type_info);//Ya se diferencian arrays de objetos
+                } else {
+                    $result[] = $value . ' ';
+                }
+            } else {
+                $result[] = $value;
             }
 
-            $result[] = trim($header) . "\n";
+            /* $header_offset = strlen($header);//Pad value line breaks
+             $header .= str_replace("\n", "\n" . str_pad('', ($level * 4) + $header_offset, ' '), $value);;*/
+
+            //Value info
+            if ($type_info && $this->format != 'json') {
+                $result[] = " ({$type_info})";
+            }
+
+            if ($this->format != 'json') {
+                $result[] = "\n";
+            }
 
             if (!empty($children)) {
-                $result[] = ($type == 'Object' ? '{' : '(') . "\n";
+                $opener = $type == 'Array' ? '[' : '{';
 
-                $pad = '    ';
-                foreach ($children as $item) {
-                    $result[] = $pad . str_replace("\n", "\n$pad", trim(html_entity_decode(strip_tags($item), ENT_QUOTES, 'UTF-8'))) . "\n";
+                if ($this->format == 'json') {
+                    $result[] = $opener;
+                    if ($type_info) {
+                        $result[] = " //{$type_info}";
+                    }
+                } else {
+                    $result[] = $opener;
                 }
 
-                $result[] = ($type == 'Object' ? '}' : ')') . "\n";
+                $result[] = "\n";
+
+
+                $pad = "\t";//$pad = '    ';
+
+                end($children);
+                $last = key($children);
+
+                foreach ($children as $k => $item) {
+                    $result[] = $pad . str_replace("\n", "\n{$pad}", trim(html_entity_decode(strip_tags($item), ENT_QUOTES, 'UTF-8')));
+
+                    if ($this->format == 'json' && $k != $last) {
+                        $result[] = ',';
+                    }
+
+                    $result[] = "\n";
+                }
+
+                $result[] = ($type == 'Array' ? ']' : '}');
+
+                $result[] = "\n";
+            } elseif ($this->format == 'json' && $type == 'Array') {
+                $result[] = "[]\n";
             }
         }
+
         return implode('', $result);
     }
 
     private function _render_exception($name, Exception $e, $level = 0)
     {
-        $children = array();
+        $children = [];
 
         //Basic info about the exception
         $path = Dump::clean_path($e->getFile());
         $message = Dump::clean_path($e->getMessage());
 
-        if ($this->html) {
-            $children[] = $this->html_element('div', array('class' => 'dump-exception'), htmlspecialchars($message));
+        if ($this->format == 'html') {
+            $children[] = $this->html_element('div', ['class' => 'dump-exception'], htmlspecialchars($message));
         }
 
         //Source code
-        if ($this->html) {
+        if ($this->format == 'html') {
             $backtrace = Dump::backtrace($e->getTrace());
             foreach ($backtrace as $step) {
                 if ($step['file'] == $path && $step['line'] == $e->getLine()) {
@@ -282,7 +341,7 @@ class DumpRender
         } else {
             $children[] = $this->_render_item('Location', '', $path . ':' . $e->getLine(), $level + 1);
 
-            $backtrace = Dump::backtrace_small($e->getTrace());
+            $backtrace = Dump::backtrace_small($e->getTrace(), false);
         }
 
         //Context and data
@@ -294,6 +353,10 @@ class DumpRender
             $data = $e->getData();
             $children[] = $this->_render('Data', $data, $level + 1);
         }
+        if (method_exists($e, 'getUserMessage')) {
+            $data = $e->getUserMessage();
+            $children[] = $this->_render('UserMessage', $data, $level + 1);
+        }
 
         //Backtrace (en modo texto)
         if (!is_array($backtrace)) {
@@ -301,7 +364,7 @@ class DumpRender
         }
 
         //Fields
-        $children[] = $this->_render_vars('Fields', $e, $level + 1, '', ['message']);
+        // $children[] = $this->_render_vars('Fields', $e, $level + 1, '', ['message', 'trace']);
 
         //Backtrace
         if (is_array($backtrace)) {
@@ -315,7 +378,7 @@ class DumpRender
         }
     }
 
-    private function _render_vars($name, $data, $level = 0, $metadata = '', $ignore_properties = array())
+    private function _render_vars($name, $data, $level = 0, $metadata = '', $ignore_properties = [])
     {
         //"Patch" to detect if the current array is a backtrace
         $is_object = is_object($data);
@@ -325,9 +388,9 @@ class DumpRender
 
         $recursive = $level > 4 && $is_object && in_array($data, $this->_recursion_objects, true);
 
-        if ($level < $this->_config['nesting_level'] && !$recursive) {
+        if ($level < $this->nesting_level && !$recursive) {
             //Render subitems
-            $children = array();
+            $children = [];
             if ($is_object) {
                 $properties_count = 0;
                 if (method_exists($data, '__debugInfo')) {
@@ -348,7 +411,7 @@ class DumpRender
                                 }
 
                                 //Get metadata
-                                $meta = array();
+                                $meta = [];
                                 if ($property->isStatic()) {
                                     $meta[] = 'Static';
                                 }
@@ -371,7 +434,7 @@ class DumpRender
                                         $value = $property->getValue($data);
                                     } else {
                                         if (!isset($private_data)) { //Initialize object private data
-                                            $private_data = $this->_get_private_data($data, array());
+                                            $private_data = $this->_get_private_data($data, []);
                                         }
 
                                         if (array_key_exists($property->name, $private_data)) {
@@ -412,7 +475,7 @@ class DumpRender
 
                     if ($is_backtrace && $key == 'source' && is_string($value) && !empty($value)) {
                         $children[] = $this->_render_source_code($key, $value, $level + 1, $data['file'], $data['line']);
-                    } elseif (!$is_backtrace || !in_array($key, array('function', 'file', 'line'))) {
+                    } elseif (!$is_backtrace || !in_array($key, ['function', 'file', 'line'])) {
                         $children[] = $this->_render($key, $value, $level + 1);
                     }
                 }
@@ -420,7 +483,6 @@ class DumpRender
         } else {
             $children = '&infin;';
         }
-
 
         //Render item
         if ($is_object) {
@@ -470,7 +532,7 @@ class DumpRender
                 }
 
                 if ($raw_data !== false) {
-                    $data = array();
+                    $data = [];
                     foreach ($raw_data as $key => $value) {
                         $pos = strrpos($key, "\0");
 
@@ -529,7 +591,7 @@ class DumpRender
             $level,
             '',
             '',
-            $this->html_element('div', array('class' => 'dump-source'), $edit_link . $value)
+            $this->html_element('div', ['class' => 'dump-source'], $edit_link . $value)
         );
     }
 
@@ -553,7 +615,7 @@ class DumpRender
         $start = max(1, $line_number - $padding);
         $end = $line_number + $padding;
 
-        $source = array();
+        $source = [];
         for ($line = 1; ($row = fgets($file)) !== false && $line < $end; $line++) {
             if ($line >= $start) {
                 $source[] = trim($row) == '' ? "&nbsp;\n" : htmlspecialchars($row, ENT_NOQUOTES);
@@ -646,7 +708,7 @@ class DumpRender
 
         //Prepare content
         if (is_array($content)) {
-            $content_html = array();
+            $content_html = [];
             foreach ($content as $child_element) {
                 if (is_array($child_element)) {
                     $content_html[] = self::html_element(
