@@ -117,9 +117,9 @@ class DumpRender
         } elseif ($data instanceof Exception) {
             $render = $this->_render_exception($name, $data, $level);
         } elseif (is_object($data)) {
-            $render = $this->_render_vars($name, $data, $level, $metadata);
+            $render = $this->_render_object($name, $data, $level, $metadata);
         } elseif (is_array($data)) {
-            $render = $this->_render_vars($name, $data, $level, $metadata);
+            $render = $this->_render_array($name, $data, $level, $metadata);
         } elseif (is_resource($data)) {
             $render = $this->_render_item($name, 'Resource', get_resource_type($data), $level, $metadata);
         } elseif (is_string($data)) {
@@ -176,11 +176,7 @@ class DumpRender
         //Variable info
         $info = '';
         if (!empty($type)) {
-            $info .= $this->html_element(
-                'span',
-                ['class' => 'dump-type'],
-                !empty($metadata) ? "$metadata, $type" : $type
-            );
+            $info .= $this->html_element('span', ['class' => 'dump-type'], !empty($metadata) ? "$metadata, $type" : $type);
         }
         if (!empty($extra_info)) {
             if (!empty($info)) {
@@ -286,7 +282,7 @@ class DumpRender
 
                 $pad = "\t";//$pad = '    ';
                 foreach ($children as $k => $item) {
-                    $children[$k] = $pad . str_replace("\n", "\n{$pad}", trim(html_entity_decode(strip_tags($item), ENT_QUOTES, 'UTF-8')));
+                    $children[$k] = $pad . str_replace("\n", "\n{$pad}", trim($item));
                 }
                 $result[] = implode($this->format == 'json' ? ",\n" : "\n", $children);
 
@@ -347,6 +343,10 @@ class DumpRender
             $data = $e->getData();
             $children[] = $this->_render('Data', $data, $level + 1);
         }
+        if (method_exists($e, 'getPrevious')) {
+            $data = $e->getPrevious();
+            $children[] = $this->_render('Previous', $data, $level + 1);
+        }
         if (method_exists($e, 'getUserMessage')) {
             $data = $e->getUserMessage();
             $children[] = $this->_render('UserMessage', $data, $level + 1);
@@ -358,7 +358,7 @@ class DumpRender
         }
 
         //Fields
-        // $children[] = $this->_render_vars('Fields', $e, $level + 1, '', ['message', 'trace']);
+        // $children[] = $this->_render_object('Fields', $e, $level + 1, '', ['message', 'trace']);
 
         //Backtrace
         if (is_array($backtrace)) {
@@ -389,140 +389,145 @@ class DumpRender
         }
     }
 
-    private function _render_vars($name, $data, $level = 0, $metadata = '', $ignore_properties = [])
+    private function _render_array($name, $data, $level = 0, $metadata = '', $ignored_keys = [])
     {
-        $is_object = is_object($data);
-
-        $recursive = $level > 4 && $is_object && in_array($data, $this->_recursion_objects, true);
-
-        if ($level < $this->nesting_level && !$recursive) {
-            //Render subitems
+        if ($level < $this->nesting_level || empty($data)) {//Render items
             $children = [];
-            if ($is_object) {
-                $properties_count = 0;
-                if (method_exists($data, '__debugInfo')) {
-                    $properties = $data->__debugInfo();
 
-                    if (!is_array($properties)) {
-                        $properties = ['' => $properties];
+            $ignore_keys = false;
+            $all_scalar = false;
+            if ($this->format == 'json') {//Ignore keys in normal zero-based indexed arrays
+                $i = 0;
+                $ignore_keys = true;
+                $all_scalar = true;
+                foreach ($data as $key => $value) {
+                    if ($i !== $key) {
+                        $ignore_keys = false;
+                        break;
                     }
-                } else {
-                    if (!($data instanceof stdClass) && class_exists('ReflectionClass', false)) {
-                        $current = new ReflectionClass($data);
-                        $private_data = null;
-                        while ($current !== false) {
-                            foreach ($current->getProperties() as $property) {
-                                /* @var $property ReflectionProperty */
-                                if (in_array($property->name, $ignore_properties)) {
-                                    continue;
-                                }
-
-                                //Get metadata
-                                $meta = [];
-                                if ($property->isStatic()) {
-                                    $meta[] = 'Static';
-                                }
-                                if ($property->isPrivate()) {
-                                    $meta[] = 'Private';
-                                }
-                                if ($property->isProtected()) {
-                                    $meta[] = 'Protected';
-                                }
-                                if ($property->isPublic()) {
-                                    $meta[] = 'Public';
-                                }
-
-                                //Build field
-                                if ($property->isPublic()) {
-                                    $value = $property->getValue($data);
-                                } else {
-                                    if (method_exists($property, 'setAccessible')) {
-                                        $property->setAccessible(true);
-                                        $value = $property->getValue($data);
-                                    } else {
-                                        if (!isset($private_data)) { //Initialize object private data
-                                            $private_data = $this->_get_private_data($data, []);
-                                        }
-
-                                        if (array_key_exists($property->name, $private_data)) {
-                                            $value = $private_data[$property->name];
-                                        } else {
-                                            $value = '?';
-                                        }
-                                    }
-                                }
-
-                                $children[] = $this->_render($property->name, $value, $level + 1, implode(', ', $meta));
-                                $ignore_properties[] = $property->name;
-                            }
-                            $current = $current->getParentClass();
-                            $properties_count = count($ignore_properties);
-                        }
+                    if (!is_scalar($value)) {
+                        $all_scalar = false;
                     }
+                    $i++;
+                }
+            }
 
-                    //Find runtime properties
-                    $properties = get_object_vars($data);
+            foreach ($data as $key => &$value) {
+                if (in_array($key, $ignored_keys)) {
+                    continue;
                 }
 
-                //Add properties as child of the current node
-                foreach ($properties as $key => $value) {
-                    if (in_array($key, $ignore_properties)) {
-                        continue;
-                    }
+                $children[] = $this->_render($ignore_keys ? '' : $key, $value, $level + 1);
+            }
 
-                    $children[] = $this->_render($key, $value, $level + 1);
-                    $properties_count++;
+            if ($this->format == 'json' && $ignore_keys && $all_scalar) {
+                $total_length = 0;
+                foreach ($children as $child) {
+                    $total_length += strlen($child);
                 }
 
-                $this->_recursion_objects[] = $data;
-            } else { //Array
-                $ignore_keys = false;
-                $all_scalar = false;
-                if ($this->format == 'json') {//Ignore keys in normal zero-based indexed arrays
-                    $i = 0;
-                    $ignore_keys = true;
-                    $all_scalar = true;
-                    foreach ($data as $key => $value) {
-                        if ($i !== $key) {
-                            $ignore_keys = false;
-                            break;
-                        }
-                        if (!is_scalar($value)) {
-                            $all_scalar = false;
-                        }
-                        $i++;
-                    }
-                }
-
-                foreach ($data as $key => &$value) {
-                    if (in_array($key, $ignore_properties)) {
-                        continue;
-                    }
-
-                    $children[] = $this->_render($ignore_keys ? '' : $key, $value, $level + 1);
-                }
-
-                if ($this->format == 'json' && $ignore_keys && $all_scalar) {
-                    $total_length = 0;
-                    foreach ($children as $child) {
-                        $total_length += strlen($child);
-                    }
-
-                    if ($total_length < 450) {
-                        return "{$name}: [" . str_replace(["\n", "\t"], '', implode(', ', $children)) . ']';
-                    }
+                if ($total_length < 450) {
+                    return "{$name}: [" . str_replace(["\n", "\t"], '', implode(', ', $children)) . ']';
                 }
             }
         } else {
-            $children = '&infin;';
+            $children = '∞';
         }
 
         //Render item
-        if ($is_object) {
-            return $this->_render_item($name, 'Object', get_class($data), $level, $metadata, isset($properties_count) ? "$properties_count fields" : '', $children);
+        return $this->_render_item($name, 'Array', '', $level, $metadata, count($data) . ' items', $children);
+    }
+
+    private function _render_object($name, $data, $level = 0, $metadata = '', $ignored_properties = [])
+    {
+        $recursive = $level > 4 && in_array($data, $this->_recursion_objects, true);
+
+        $properties_count = 0;
+        if ($level < $this->nesting_level && !$recursive) {
+            //Render object fields
+            $children = [];
+
+            if (method_exists($data, '__debugInfo')) {
+                $properties = $data->__debugInfo();
+
+                if (!is_array($properties)) {
+                    $properties = ['' => $properties];
+                }
+            } else {
+                if (!($data instanceof stdClass) && class_exists('ReflectionClass', false)) {
+                    $current = new ReflectionClass($data);
+                    $private_data = null;
+                    while ($current !== false) {
+                        foreach ($current->getProperties() as $property) {
+                            /* @var $property ReflectionProperty */
+                            if (in_array($property->name, $ignored_properties)) {
+                                continue;
+                            }
+
+                            //Get metadata
+                            $meta = [];
+                            if ($property->isStatic()) {
+                                $meta[] = 'Static';
+                            }
+                            if ($property->isPrivate()) {
+                                $meta[] = 'Private';
+                            }
+                            if ($property->isProtected()) {
+                                $meta[] = 'Protected';
+                            }
+                            if ($property->isPublic()) {
+                                $meta[] = 'Public';
+                            }
+
+                            //Build field
+                            if ($property->isPublic()) {
+                                $value = $property->getValue($data);
+                            } else {
+                                if (method_exists($property, 'setAccessible')) {
+                                    $property->setAccessible(true);
+                                    $value = $property->getValue($data);
+                                } else {
+                                    if (!isset($private_data)) { //Initialize object private data
+                                        $private_data = $this->_get_private_data($data, []);
+                                    }
+
+                                    if (array_key_exists($property->name, $private_data)) {
+                                        $value = $private_data[$property->name];
+                                    } else {
+                                        $value = '?';
+                                    }
+                                }
+                            }
+
+                            $children[] = $this->_render($property->name, $value, $level + 1, implode(', ', $meta));
+                            $ignored_properties[] = $property->name;
+                        }
+                        $current = $current->getParentClass();
+                        $properties_count = count($ignored_properties);
+                    }
+                }
+
+                //Find runtime properties
+                $properties = get_object_vars($data);
+            }
+
+            //Add properties as child of the current node
+            foreach ($properties as $key => $value) {
+                if (in_array($key, $ignored_properties)) {
+                    continue;
+                }
+
+                $children[] = $this->_render($key, $value, $level + 1);
+                $properties_count++;
+            }
+
+            $this->_recursion_objects[] = $data;
         } else {
-            return $this->_render_item($name, 'Array', '', $level, $metadata, count($data) . ' items', $children);
+            $children = '∞';
         }
+
+        //Render item
+        return $this->_render_item($name, 'Object', get_class($data), $level, $metadata, "{$properties_count} fields", $children);
     }
 
     private function _get_private_data($object, $default = false)
