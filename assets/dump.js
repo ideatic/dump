@@ -242,7 +242,7 @@ var init_dump;
             $.ajax({
                 dataType: "script",
                 cache: true,
-                url: settings.static_url + "/CodeMirror/codemirror.js",
+                url: settings.static_url + "/CodeMirror/codemirror.min.js",
                 success: function () {
                     $(document).trigger('codemirror_loaded');
                 }

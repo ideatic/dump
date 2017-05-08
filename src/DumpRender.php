@@ -480,23 +480,27 @@ class DumpRender
                             }
 
                             //Build field
-                            if ($property->isPublic()) {
-                                $value = $property->getValue($data);
-                            } else {
-                                if (method_exists($property, 'setAccessible')) {
-                                    $property->setAccessible(true);
+                            try {
+                                if ($property->isPublic()) {
                                     $value = $property->getValue($data);
                                 } else {
-                                    if (!isset($private_data)) { //Initialize object private data
-                                        $private_data = $this->_get_private_data($data, []);
-                                    }
-
-                                    if (array_key_exists($property->name, $private_data)) {
-                                        $value = $private_data[$property->name];
+                                    if (method_exists($property, 'setAccessible')) {
+                                        $property->setAccessible(true);
+                                        $value = $property->getValue($data);
                                     } else {
-                                        $value = '?';
+                                        if (!isset($private_data)) { //Initialize object private data
+                                            $private_data = $this->_get_private_data($data, []);
+                                        }
+
+                                        if (array_key_exists($property->name, $private_data)) {
+                                            $value = $private_data[$property->name];
+                                        } else {
+                                            $value = '?';
+                                        }
                                     }
                                 }
+                            } catch (Exception $err) {
+                                $value = '##ERROR##';
                             }
 
                             $children[] = $this->_render($property->name, $value, $level + 1, implode(', ', $meta));
