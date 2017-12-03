@@ -114,7 +114,7 @@ class DumpRender
         $memory_limit = $this->_return_bytes(ini_get('memory_limit'));
         if (memory_get_usage() > $memory_limit * 0.75) {
             $render = $this->_render_item($name, '&times;', 'Memory exhausted', $level, $metadata);
-        } elseif ($data instanceof Exception) {
+        } elseif ($data instanceof Throwable) {
             $render = $this->_render_exception($name, $data, $level);
         } elseif (is_object($data)) {
             $render = $this->_render_object($name, $data, $level, $metadata);
@@ -600,8 +600,9 @@ class DumpRender
      */
     private function _return_bytes($val)
     {
-        $val = intval(trim($val));
+        $val = trim($val);
         $last = strtolower($val[strlen($val) - 1]);
+        $val = intval($val);
         switch ($last) {
             // The 'G' modifier is available since PHP 5.1.0
             case 'g':
