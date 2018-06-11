@@ -178,18 +178,13 @@ class DumpRender
         //Variable info
         $info = '';
         if (!empty($type)) {
-            $content = !empty($metadata) ? "{$metadata}, {$type}" : $type;
-            if ($this->format == 'html') {
-                $info .= $this->html_element('span', ['class' => 'dump-type'], $content);
-            } else {
-                $info .= $content;
-            }
+            $info .= $this->html_element('span', ['class' => 'dump-type'], !empty($metadata) ? "$metadata, $type" : $type);
         }
         if (!empty($extra_info)) {
             if (!empty($info)) {
                 $info .= ', ';
             }
-            $info .= $this->format == 'html' ? $this->html_element('span', ['class' => 'dump-info'], $extra_info) : $extra_info;
+            $info .= $this->html_element('span', ['class' => 'dump-info'], $extra_info);
         }
 
         //Child data
@@ -208,7 +203,7 @@ class DumpRender
                 ['class' => ['dump-header', $class, empty($children) ? '' : ' dump-collapsed']],
                 [
                     ['span', ['class' => 'dump-name'], htmlspecialchars($name)],
-                    empty($info) ? '' : " ({$info})",
+                    empty($info) ? '' : " ($info)",
                     ' ',
                     ['span', ['class' => 'dump-value'], htmlspecialchars($value)],
                 ]
@@ -235,7 +230,7 @@ class DumpRender
             }
 
             //Value
-            $type_info = !empty($info) && $this->show_types ? $info: '';
+            $type_info = !empty($info) && $this->show_types ? trim(html_entity_decode(strip_tags($info), ENT_QUOTES, 'UTF-8')) : '';
             if ($this->format == 'json') {
                 if ($type == 'String') {
                     $result[] = "\"{$value}\"";
