@@ -81,6 +81,7 @@ abstract class Dump
         $render = self::_prepare_render();
         $render->format = $format;
         $render->show_caller = false;
+        $render->count_elements = false;
         $render->show_types = $show_types;
         $render->nesting_level = isset($nesting_level) ? $nesting_level : self::$nesting_level;
 
@@ -205,7 +206,7 @@ abstract class Dump
      *
      * @return string
      */
-    public static function backtrace_small(array $trace = null, $html = true, $rtl = false)
+    public static function backtrace_small(array $trace = null, $html = false, $rtl = false)
     {
         if (!$trace) {
             $trace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS);

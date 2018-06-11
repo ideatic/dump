@@ -9,6 +9,8 @@ class DumpRender
     public $show_types = true;
     public $format = 'html';
 
+    public $count_elements = true;
+
     /**
      * Max nesting level to render
      * @var int
@@ -176,13 +178,18 @@ class DumpRender
         //Variable info
         $info = '';
         if (!empty($type)) {
-            $info .= $this->html_element('span', ['class' => 'dump-type'], !empty($metadata) ? "$metadata, $type" : $type);
+            $content = !empty($metadata) ? "{$metadata}, {$type}" : $type;
+            if ($this->format == 'html') {
+                $info .= $this->html_element('span', ['class' => 'dump-type'], $content);
+            } else {
+                $info .= $content;
+            }
         }
         if (!empty($extra_info)) {
             if (!empty($info)) {
                 $info .= ', ';
             }
-            $info .= $this->html_element('span', ['class' => 'dump-info'], $extra_info);
+            $info .= $this->format == 'html' ? $this->html_element('span', ['class' => 'dump-info'], $extra_info) : $extra_info;
         }
 
         //Child data
@@ -201,7 +208,7 @@ class DumpRender
                 ['class' => ['dump-header', $class, empty($children) ? '' : ' dump-collapsed']],
                 [
                     ['span', ['class' => 'dump-name'], htmlspecialchars($name)],
-                    empty($info) ? '' : " ($info)",
+                    empty($info) ? '' : " ({$info})",
                     ' ',
                     ['span', ['class' => 'dump-value'], htmlspecialchars($value)],
                 ]
@@ -228,7 +235,7 @@ class DumpRender
             }
 
             //Value
-            $type_info = !empty($info) && $this->show_types ? trim(html_entity_decode(strip_tags($info), ENT_QUOTES, 'UTF-8')) : '';
+            $type_info = !empty($info) && $this->show_types ? $info: '';
             if ($this->format == 'json') {
                 if ($type == 'String') {
                     $result[] = "\"{$value}\"";
@@ -243,9 +250,9 @@ class DumpRender
                         $type_info = false;
                     }
                 } elseif ($type == 'Object') {
-                    $type_info = str_replace('Object, ', $value . ', ', $type_info);
+                    $type_info =  preg_replace('/^Object\,?\s*/i', $value . ', ', $type_info);
                 } elseif ($type == 'Array') {
-                    $type_info = str_replace('Array, ', '', $type_info);//Ya se diferencian arrays de objetos
+                    $type_info = preg_replace('/^Array\,?\s*/i', '', $type_info);//Ya se diferencian arrays de objetos
                 } else {
                     $result[] = $value . ' ';
                 }
@@ -435,7 +442,7 @@ class DumpRender
         }
 
         //Render item
-        return $this->_render_item($name, 'Array', '', $level, $metadata, count($data) . ' items', $children);
+        return $this->_render_item($name, 'Array', '', $level, $metadata, $this->count_elements ? (count($data) . ' items') : '', $children);
     }
 
     private function _render_object($name, $data, $level = 0, $metadata = '', $ignored_properties = [])
@@ -602,6 +609,12 @@ class DumpRender
     {
         $val = trim($val);
         $last = strtolower($val[strlen($val) - 1]);
+
+        if (is_numeric($last)) {
+            return $val;
+        }
+
+        $val = substr($val, 0, -1);
         switch ($last) {
             // The 'G' modifier is available since PHP 5.1.0
             case 'g':
