@@ -7,6 +7,7 @@ class DumpRender
 {
     public $show_caller = true;
     public $show_types = true;
+    public $show_extra_info = true;
     public $format = 'html';
 
     public $count_elements = true;
@@ -44,7 +45,7 @@ class DumpRender
 
         $show_caller = $this->show_caller;
         // Render data
-        if (count($data) == 1 && ($e = reset($data)) instanceof Exception) {
+        if (count($data) == 1 && ($e = reset($data)) instanceof Throwable) {
             $this->_recursion_objects = [];
             $inner = [$this->_render_exception('', $e)];
 
@@ -114,9 +115,9 @@ class DumpRender
     private function _render($name, &$data, $level = 0, $metadata = null)
     {
         $memory_limit = $this->_return_bytes(ini_get('memory_limit'));
-        if (memory_get_usage() > $memory_limit * 0.75) {
+        if ($memory_limit > 0 && memory_get_usage() > $memory_limit * 0.75) {
             $render = $this->_render_item($name, '&times;', 'Memory exhausted', $level, $metadata);
-        } elseif ($data instanceof Exception) {
+        } elseif ($data instanceof Throwable) {
             $render = $this->_render_exception($name, $data, $level);
         } elseif (is_object($data)) {
             $render = $this->_render_object($name, $data, $level, $metadata);
@@ -177,7 +178,7 @@ class DumpRender
     {
         // Variable info
         $info = '';
-        if (!empty($type)) {
+        if (!empty($type) && $this->show_types) {
             $content = !empty($metadata) ? "{$metadata}, {$type}" : $type;
             if ($this->format == 'html') {
                 $info .= $this->html_element('span', ['class' => 'dump-type'], $content);
@@ -208,14 +209,14 @@ class DumpRender
                 ['class' => ['dump-header', $class, empty($children) ? '' : ' dump-collapsed']],
                 [
                     ['span', ['class' => 'dump-name'], htmlspecialchars($name)],
-                    empty($info) ? '' : " ({$info})",
+                    empty($info) || !$this->show_extra_info ? '' : " ({$info})",
                     ' ',
                     ['span', ['class' => 'dump-value'], htmlspecialchars($value)],
                 ]
             );
 
             if (!empty($children)) {
-                $result[] = "<div class=\"dump-content $class\"><ul class=\"dump-node\">";
+                $result[] = "<div class=\"dump-content {$class}\"><ul class=\"dump-node\">";
 
                 foreach ($children as $item) {
                     $result[] = '<li>';
@@ -235,7 +236,7 @@ class DumpRender
             }
 
             // Value
-            $type_info = !empty($info) && $this->show_types ? $info: '';
+            $type_info = !empty($info) && $this->show_types ? $info : '';
             if ($this->format == 'json') {
                 if ($type == 'String') {
                     $result[] = "\"{$value}\"";
@@ -250,7 +251,7 @@ class DumpRender
                         $type_info = false;
                     }
                 } elseif ($type == 'Object') {
-                    $type_info =  preg_replace('/^Object\,?\s*/i', $value . ', ', $type_info);
+                    $type_info = preg_replace('/^Object\,?\s*/i', $value . ', ', $type_info);
                 } elseif ($type == 'Array') {
                     $type_info = preg_replace('/^Array\,?\s*/i', '', $type_info);// Ya se diferencian arrays de objetos
                 } else {
@@ -308,7 +309,7 @@ class DumpRender
         return implode('', $result);
     }
 
-    private function _render_exception($name, Exception $e, $level = 0)
+    private function _render_exception($name, Throwable $e, $level = 0)
     {
         $children = [];
 
@@ -488,7 +489,8 @@ class DumpRender
 
                             // Build field
                             try {
-                                if ($property->isPublic()) {
+                                $name = $property->name;
+                                if ($property->isPublic() && isset($data->$name)) {
                                     $value = $property->getValue($data);
                                 } else {
                                     if (method_exists($property, 'setAccessible')) {
@@ -506,7 +508,7 @@ class DumpRender
                                         }
                                     }
                                 }
-                            } catch (Exception $err) {
+                            } catch (Throwable $err) {
                                 $value = '##ERROR##';
                             }
 
@@ -646,8 +648,8 @@ class DumpRender
 
     /**
      * Read the source code from a file, centered in a line number, with a specific padding and applying a highlight
-     * @internal
      * @return string
+     * @internal
      */
     public static function get_source($file, $line_number, $padding = 10)
     {
