@@ -45,7 +45,7 @@ class DumpRender
 
         $show_caller = $this->show_caller;
         // Render data
-        if (count($data) == 1 && ($e = reset($data)) instanceof Throwable) {
+        if (count($data) == 1 && (($e = reset($data)) instanceof Exception || ($e = reset($data)) instanceof Throwable)) {
             $this->_recursion_objects = [];
             $inner = [$this->_render_exception('', $e)];
 
@@ -117,7 +117,7 @@ class DumpRender
         $memory_limit = $this->_return_bytes(ini_get('memory_limit'));
         if ($memory_limit > 0 && memory_get_usage() > $memory_limit * 0.75) {
             $render = $this->_render_item($name, '&times;', 'Memory exhausted', $level, $metadata);
-        } elseif ($data instanceof Throwable) {
+        } elseif ($data instanceof Exception || $data instanceof Throwable) {
             $render = $this->_render_exception($name, $data, $level);
         } elseif (is_object($data)) {
             $render = $this->_render_object($name, $data, $level, $metadata);
@@ -309,7 +309,14 @@ class DumpRender
         return implode('', $result);
     }
 
-    private function _render_exception($name, Throwable $e, $level = 0)
+    /**
+     * @param                     $name
+     * @param Exception|Throwable $e
+     * @param int                 $level
+     *
+     * @return string
+     */
+    private function _render_exception($name, $e, $level = 0)
     {
         $children = [];
 
