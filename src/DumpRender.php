@@ -502,7 +502,9 @@ class DumpRender
                                 } else {
                                     if (method_exists($property, 'setAccessible')) {
                                         $property->setAccessible(true);
-                                        $value = $property->getValue($data);
+                                        if (isset($data->$name)) {
+                                            $value = $property->getValue($data);
+                                        }
                                     } else {
                                         if (!isset($private_data)) { // Initialize object private data
                                             $private_data = $this->_get_private_data($data, []);
