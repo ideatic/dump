@@ -96,12 +96,13 @@ abstract class Dump
      *
      * @return string
      */
-    public static function render_data($name, $value, $show_caller = true)
+    public static function render_data($name, $value, $show_caller = true, $show_extra_info = true)
     {
         self::_load_helpers();
 
         $render = self::_prepare_render();
         $render->show_caller = $show_caller;
+        $render->show_extra_info = $show_extra_info;
         return $render->render($name, $value);
     }
 
@@ -261,7 +262,7 @@ abstract class Dump
             }
         }
         $extra .= DumpRender::html_attributes($attrs);
-        return "<$tag class=\"dump-code\" data-language=\"$language\" data-theme=\"$theme\" $extra>$code</$tag>" .
+        return "<{$tag} class=\"dump-code\" data-language=\"{$language}\" data-theme=\"{$theme}\" {$extra}>{$code}</{$tag}>" .
                DumpRender::assets_loader('init_dump($(".dump-code"),{static_url:"' . self::$_static_url . '"})', self::$_static_url);
     }
 
