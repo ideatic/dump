@@ -533,6 +533,10 @@ class DumpRender
                 $properties = get_object_vars($data);
             }
 
+            if (!is_array($properties)) {
+                $properties = [];
+            }
+
             // Add properties as child of the current node
             foreach ($properties as $key => $value) {
                 if (in_array($key, $ignored_properties)) {
@@ -602,7 +606,6 @@ class DumpRender
                     }
                 }
             } catch (Exception $err) {
-
             }
         }
 
@@ -724,6 +727,7 @@ class DumpRender
                 }</style>
         </noscript>
         <?php
+
         return ob_get_clean();
     }
 
