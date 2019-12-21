@@ -495,26 +495,23 @@ class DumpRender
                             }
 
                             // Build field
+                            $value = null;
                             try {
                                 $name = $property->name;
                                 if ($property->isPublic() && isset($data->$name)) {
                                     $value = $property->getValue($data);
+                                } elseif (method_exists($property, 'setAccessible') && isset($data->$name)) {
+                                    $property->setAccessible(true);
+                                    $value = $property->getValue($data);
                                 } else {
-                                    if (method_exists($property, 'setAccessible')) {
-                                        $property->setAccessible(true);
-                                        if (isset($data->$name)) {
-                                            $value = $property->getValue($data);
-                                        }
-                                    } else {
-                                        if (!isset($private_data)) { // Initialize object private data
-                                            $private_data = $this->_get_private_data($data, []);
-                                        }
+                                    if (!isset($private_data)) { // Initialize object private data
+                                        $private_data = $this->_get_private_data($data, []);
+                                    }
 
-                                        if (array_key_exists($property->name, $private_data)) {
-                                            $value = $private_data[$property->name];
-                                        } else {
-                                            $value = '?';
-                                        }
+                                    if (array_key_exists($property->name, $private_data)) {
+                                        $value = $private_data[$property->name];
+                                    } else {
+                                        $value = '?';
                                     }
                                 }
                             } catch (Throwable $err) {
@@ -564,25 +561,23 @@ class DumpRender
                 if ($method == 0) {
                     // Based on a hack to access private properties: http://derickrethans.nl/private-properties-exposed.html
                     $raw_data = (array)$object;
-                } else {
-                    if ($method == 1) {
-                        // Try to get it using serialize()
-                        $class_name = get_class($object);
-                        $serialized = serialize($object);
+                } elseif ($method == 1) {
+                    // Try to get it using serialize()
+                    $class_name = get_class($object);
+                    $serialized = serialize($object);
 
-                        if (preg_match('/' . preg_quote($class_name) . '.\:(\d+)/', $serialized, $match)) {
-                            $prop_count = $match[1];
-                            $class_name_len = strlen($class_name);
+                    if (preg_match('/' . preg_quote($class_name) . '.\:(\d+)/', $serialized, $match)) {
+                        $prop_count = $match[1];
+                        $class_name_len = strlen($class_name);
 
-                            $serialized_array = str_replace(
-                                "O:$class_name_len:\"$class_name\":$prop_count:",
-                                "a:$prop_count:",
-                                $serialized
-                            );
+                        $serialized_array = str_replace(
+                            "O:{$class_name_len}:\"{$class_name}\":{$prop_count}:",
+                            "a:{$prop_count}:",
+                            $serialized
+                        );
 
-                            if ($serialized != $serialized_array) {
-                                $raw_data = unserialize($serialized_array);
-                            }
+                        if ($serialized != $serialized_array) {
+                            $raw_data = unserialize($serialized_array);
                         }
                     }
                 }
@@ -592,8 +587,7 @@ class DumpRender
                     foreach ($raw_data as $key => $value) {
                         $pos = strrpos($key, "\0");
 
-                        if ($pos !== false
-                        ) // Remove special names given by php ( "\0*\0" for protected fields, "\0$class_name\0" for private)
+                        if ($pos !== false) // Remove special names given by php ( "\0*\0" for protected fields, "\0$class_name\0" for private)
                         {
                             $key = substr($key, $pos + 1);
                         }
