@@ -47,12 +47,12 @@ class DumpRender
         // Render data
         if (count($data) == 1 && (($e = reset($data)) instanceof Exception || ($e = reset($data)) instanceof Throwable)) {
             $this->_recursion_objects = [];
-            $inner = [$this->_render_exception('', $e)];
+            $inner = [$this->_renderException('', $e)];
 
             // Caller info
             $show_caller = true;
             $action = 'Thrown';
-            $step['file'] = Dump::clean_path($e->getFile());
+            $step['file'] = Dump::cleanPath($e->getFile());
             $step['line'] = $e->getLine();
         } else {
             $inner = [];
@@ -75,7 +75,7 @@ class DumpRender
                         break;
                     }
                 }
-                $step['file'] = Dump::clean_path($step['file']);
+                $step['file'] = Dump::cleanPath($step['file']);
             }
         }
 
@@ -85,7 +85,7 @@ class DumpRender
             $result[] = '<div class="dump">';
 
             // Loader
-            $result[] = self::assets_loader('init_dump($(".dump"),{static_url:"' . $this->assets_url . '"})', $this->assets_url);
+            $result[] = self::assetsLoader('init_dump($(".dump"),{static_url:"' . $this->assets_url . '"})', $this->assets_url);
 
             // Body
             $result[] = '<ul class="dump-node dump-firstnode"><li>';
@@ -96,7 +96,7 @@ class DumpRender
 
             // Footer
             if (isset($step) && $show_caller) {
-                $result[] = $this->html_element('div', ['class' => 'dump-footer'], "{$action} from {$step['file']}, line {$step['line']}");
+                $result[] = $this->htmlElement('div', ['class' => 'dump-footer'], "{$action} from {$step['file']}, line {$step['line']}");
             }
 
             $result[] = '</div>';
@@ -114,35 +114,35 @@ class DumpRender
 
     private function _render($name, &$data, $level = 0, $metadata = null)
     {
-        $memory_limit = $this->_return_bytes(ini_get('memory_limit'));
+        $memory_limit = $this->_returnBytes(ini_get('memory_limit'));
         if ($memory_limit > 0 && memory_get_usage() > $memory_limit * 0.75) {
-            $render = $this->_render_item($name, '&times;', 'Memory exhausted', $level, $metadata);
+            $render = $this->_renderItem($name, '&times;', 'Memory exhausted', $level, $metadata);
         } elseif ($data instanceof Exception || $data instanceof Throwable) {
-            $render = $this->_render_exception($name, $data, $level);
+            $render = $this->_renderException($name, $data, $level);
         } elseif (is_object($data)) {
-            $render = $this->_render_object($name, $data, $level, $metadata);
+            $render = $this->_renderObject($name, $data, $level, $metadata);
         } elseif (is_array($data)) {
-            $render = $this->_render_array($name, $data, $level, $metadata);
+            $render = $this->_renderArray($name, $data, $level, $metadata);
         } elseif (is_resource($data)) {
-            $render = $this->_render_item($name, 'Resource', get_resource_type($data), $level, $metadata);
+            $render = $this->_renderItem($name, 'Resource', get_resource_type($data), $level, $metadata);
         } elseif (is_string($data)) {
             $html = '';
             if ($this->format == 'html') {
                 if (preg_match('#^(\w+):\/\/([\w@][\w.:@]+)\/?[\w\.?=%&=\-@/$,]*$#', $data)) // URL
                 {
-                    $html = $this->html_element(
+                    $html = $this->htmlElement(
                         'a',
                         ['href' => $data, 'target' => '_blank'],
                         htmlspecialchars($data)
                     );
                 } elseif (preg_match('#^([a-zA-Z0-9_\-\.]+)@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.)|(([a-zA-Z0-9\-]+\.)+))([a-zA-Z]{2,4}|[0-9]{1,3})$#', $data)) {// Email
-                    $html = $this->html_element(
+                    $html = $this->htmlElement(
                         'a',
                         ['href' => "mailto:$data", 'target' => '_blank'],
                         htmlspecialchars($data)
                     );
                 } elseif (strpos($data, '<') !== false || strlen($data) > 15) {// Only expand if is a long text or HTML code
-                    $html = $this->html_element(
+                    $html = $this->htmlElement(
                         'div',
                         ['class' => 'dump-string'],
                         htmlspecialchars(str_replace(['{', '}'], ['&#123;', '&#125;'], $data))// Proteger plantillas Angular y Twig
@@ -150,7 +150,7 @@ class DumpRender
                 }
             }
 
-            $render = $this->_render_item(
+            $render = $this->_renderItem(
                 $name,
                 'String',
                 strlen($data) > 100 && $this->format == 'html' ? substr($data, 0, 100) . '...' : $data,
@@ -160,37 +160,37 @@ class DumpRender
                 $html
             );
         } elseif (is_float($data)) {
-            $render = $this->_render_item($name, 'Float', $data, $level, $metadata);
+            $render = $this->_renderItem($name, 'Float', $data, $level, $metadata);
         } elseif (is_integer($data)) {
-            $render = $this->_render_item($name, 'Integer', $data, $level, $metadata);
+            $render = $this->_renderItem($name, 'Integer', $data, $level, $metadata);
         } elseif (is_bool($data)) {
-            $render = $this->_render_item($name, 'Boolean', $data ? 'TRUE' : 'FALSE', $level, $metadata);
+            $render = $this->_renderItem($name, 'Boolean', $data ? 'TRUE' : 'FALSE', $level, $metadata);
         } elseif (is_null($data)) {
-            $render = $this->_render_item($name, 'NULL', null, $level, $metadata);
+            $render = $this->_renderItem($name, 'NULL', null, $level, $metadata);
         } else {
-            $render = $this->_render_item($name, '?', '<pre>' . print_r($data, true) . '</pre>', $level, $metadata);
+            $render = $this->_renderItem($name, '?', '<pre>' . print_r($data, true) . '</pre>', $level, $metadata);
         }
 
         return $render;
     }
 
-    private function _render_item($name, $type, $value, $level, $metadata = '', $extra_info = '', $children = null, $class = null)
+    private function _renderItem($name, $type, $value, $level, $metadata = '', $extraInfo = '', $children = null, $class = null): string
     {
         // Variable info
         $info = '';
         if (!empty($type) && $this->show_types) {
             $content = !empty($metadata) ? "{$metadata}, {$type}" : $type;
             if ($this->format == 'html') {
-                $info .= $this->html_element('span', ['class' => 'dump-type'], $content);
+                $info .= $this->htmlElement('span', ['class' => 'dump-type'], $content);
             } else {
                 $info .= $content;
             }
         }
-        if (!empty($extra_info)) {
+        if (!empty($extraInfo)) {
             if (!empty($info)) {
                 $info .= ', ';
             }
-            $info .= $this->format == 'html' ? $this->html_element('span', ['class' => 'dump-info'], $extra_info) : $extra_info;
+            $info .= $this->format == 'html' ? $this->htmlElement('span', ['class' => 'dump-info'], $extraInfo) : $extraInfo;
         }
 
         // Child data
@@ -204,7 +204,7 @@ class DumpRender
                 $class = strtolower($type);
             }
 
-            $result[] = $this->html_element(
+            $result[] = $this->htmlElement(
                 'div',
                 ['class' => ['dump-header', $class, empty($children) ? '' : ' dump-collapsed']],
                 [
@@ -261,9 +261,6 @@ class DumpRender
                 $result[] = $value;
             }
 
-            /* $header_offset = strlen($header);// Pad value line breaks
-             $header .= str_replace("\n", "\n" . str_pad('', ($level * 4) + $header_offset, ' '), $value);;*/
-
             // Value info
             if ($type_info && $this->format != 'json') {
                 $result[] = " ({$type_info})";
@@ -316,16 +313,16 @@ class DumpRender
      *
      * @return string
      */
-    private function _render_exception($name, $e, $level = 0)
+    private function _renderException($name, $e, $level = 0)
     {
         $children = [];
 
         // Basic info about the exception
-        $path = Dump::clean_path($e->getFile());
-        $message = Dump::clean_path($e->getMessage());
+        $path = Dump::cleanPath($e->getFile());
+        $message = Dump::cleanPath($e->getMessage());
 
         if ($this->format == 'html') {
-            $children[] = $this->html_element('div', ['class' => 'dump-exception'], htmlspecialchars($message));
+            $children[] = $this->htmlElement('div', ['class' => 'dump-exception'], htmlspecialchars($message));
         }
 
         // Source code
@@ -341,12 +338,12 @@ class DumpRender
                 $source = self::get_source($e->getFile(), $e->getLine());
             }
             if (!empty($source)) {
-                $children[] = $this->_render_source_code('Source', $source, $path, $e->getLine());
+                $children[] = $this->_renderSourceCode('Source', $source, $path, $e->getLine());
             }
         } else {
-            $children[] = $this->_render_item('Location', '', $path . ':' . $e->getLine(), $level + 1);
+            $children[] = $this->_renderItem('Location', '', $path . ':' . $e->getLine(), $level + 1);
 
-            $backtrace = Dump::backtrace_small($e->getTrace(), false);
+            $backtrace = Dump::backtraceSmall($e->getTrace(), false);
         }
 
         // Context and data
@@ -369,7 +366,7 @@ class DumpRender
 
         // Backtrace (en modo texto)
         if (!is_array($backtrace)) {
-            $children[] = $this->_render_item('Backtrace', '', $backtrace, $level + 1);
+            $children[] = $this->_renderItem('Backtrace', '', $backtrace, $level + 1);
         }
 
         // Fields
@@ -377,65 +374,65 @@ class DumpRender
 
         // Backtrace
         if (is_array($backtrace)) {
-            $backtrace_children = [];
+            $backtraceChildren = [];
 
             foreach ($backtrace as $step_index => $step) {
-                $step_children = [];
+                $stepChildren = [];
                 foreach ($step as $k => $v) {
                     if ($k == 'source' && is_string($v) && !empty($v)) {
-                        $step_children[] = $this->_render_source_code($k, $v, $level + 1, $step['file'], $step['line']);
+                        $stepChildren[] = $this->_renderSourceCode($k, $v, $level + 1, $step['file'], $step['line']);
                     } elseif (!in_array($k, ['function', 'file', 'line'])) {
-                        $step_children[] = $this->_render($k, $v, $level + 1);
+                        $stepChildren[] = $this->_render($k, $v, $level + 1);
                     }
                 }
 
 
                 $info = (isset($step['args']) ? count($step['args']) : 0) . ' parameters';
-                $backtrace_children[] = $this->_render_item($step_index, $step['function'], '', $level, '', $info, $step_children);
+                $backtraceChildren[] = $this->_renderItem($step_index, $step['function'], '', $level, '', $info, $stepChildren);
             }
 
-            $children[] = $this->_render_item('Backtrace', count($backtrace) . ' steps', '', $level, '', '', $backtrace_children);
+            $children[] = $this->_renderItem('Backtrace', count($backtrace) . ' steps', '', $level, '', '', $backtraceChildren);
         }
 
         if ($level == 0) {
-            return $this->_render_item(get_class($e), '', strip_tags($message), $level, '', '', $children, 'exception');
+            return $this->_renderItem(get_class($e), '', strip_tags($message), $level, '', '', $children, 'exception');
         } else {
-            return $this->_render_item($name, get_class($e), strip_tags($message), $level, '', '', $children, 'exception');
+            return $this->_renderItem($name, get_class($e), strip_tags($message), $level, '', '', $children, 'exception');
         }
     }
 
-    private function _render_array($name, $data, $level = 0, $metadata = '', $ignored_keys = [])
+    private function _renderArray($name, $data, $level = 0, $metadata = '', $ignoredKeys = [])
     {
         if ($level < $this->nesting_level || empty($data)) {// Render items
             $children = [];
 
-            $ignore_keys = false;
-            $all_scalar = false;
+            $ignoreKeys = false;
+            $allScalar = false;
             if ($this->format == 'json') {// Ignore keys in normal zero-based indexed arrays
                 $i = 0;
-                $ignore_keys = true;
-                $all_scalar = true;
+                $ignoreKeys = true;
+                $allScalar = true;
                 foreach ($data as $key => $value) {
                     if ($i !== $key) {
-                        $ignore_keys = false;
+                        $ignoreKeys = false;
                         break;
                     }
                     if (!is_scalar($value)) {
-                        $all_scalar = false;
+                        $allScalar = false;
                     }
                     $i++;
                 }
             }
 
             foreach ($data as $key => &$value) {
-                if (in_array($key, $ignored_keys)) {
+                if (in_array($key, $ignoredKeys)) {
                     continue;
                 }
 
-                $children[] = $this->_render($ignore_keys ? '' : $key, $value, $level + 1);
+                $children[] = $this->_render($ignoreKeys ? '' : $key, $value, $level + 1);
             }
 
-            if ($this->format == 'json' && $ignore_keys && $all_scalar) {
+            if ($this->format == 'json' && $ignoreKeys && $allScalar) {
                 $total_length = 0;
                 foreach ($children as $child) {
                     $total_length += strlen($child);
@@ -450,10 +447,10 @@ class DumpRender
         }
 
         // Render item
-        return $this->_render_item($name, 'Array', '', $level, $metadata, $this->count_elements ? (count($data) . ' items') : '', $children);
+        return $this->_renderItem($name, 'Array', '', $level, $metadata, $this->count_elements ? (count($data) . ' items') : '', $children);
     }
 
-    private function _render_object($name, $data, $level = 0, $metadata = '', $ignored_properties = [])
+    private function _renderObject($name, $data, $level = 0, $metadata = '', $ignored_properties = [])
     {
         $recursive = $level > 4 && in_array($data, $this->_recursion_objects, true);
 
@@ -497,15 +494,15 @@ class DumpRender
                             // Build field
                             $value = null;
                             try {
-                                $name = $property->name;
-                                if ($property->isPublic() && isset($data->$name)) {
+                                $propertyName = $property->name;
+                                if ($property->isPublic() && isset($data->$propertyName)) {
                                     $value = $property->getValue($data);
-                                } elseif (method_exists($property, 'setAccessible') && isset($data->$name)) {
+                                } elseif (method_exists($property, 'setAccessible') && isset($data->$propertyName)) {
                                     $property->setAccessible(true);
                                     $value = $property->getValue($data);
                                 } else {
                                     if (!isset($private_data)) { // Initialize object private data
-                                        $private_data = $this->_get_private_data($data, []);
+                                        $private_data = $this->_getPrivateData($data, []);
                                     }
 
                                     if (array_key_exists($property->name, $private_data)) {
@@ -550,10 +547,10 @@ class DumpRender
         }
 
         // Render item
-        return $this->_render_item($name, 'Object', get_class($data), $level, $metadata, "{$properties_count} fields", $children);
+        return $this->_renderItem($name, 'Object', get_class($data), $level, $metadata, "{$properties_count} fields", $children);
     }
 
-    private function _get_private_data($object, $default = false)
+    private function _getPrivateData($object, $default = false)
     {
         for ($method = 0; $method < 2; $method++) {
             try {
@@ -610,10 +607,8 @@ class DumpRender
      * Convert PHP config size to bytes (11M -> 11*1024*1024)
      *
      * @param string $val
-     *
-     * @return int
      */
-    private function _return_bytes($val)
+    private function _returnBytes($val): int
     {
         $val = trim($val);
         $last = strtolower($val[strlen($val) - 1]);
@@ -636,17 +631,17 @@ class DumpRender
         return $val;
     }
 
-    private function _render_source_code($name, $value, $level, $file = null, $line = null)
+    private function _renderSourceCode($name, $value, $level, $file = null, $line = null)
     {
         $edit_link = '';
-        return $this->_render_item(
+        return $this->_renderItem(
             $name,
             '',
             "$file:$line",
             $level,
             '',
             '',
-            $this->html_element('div', ['class' => 'dump-source'], $edit_link . $value)
+            $this->htmlElement('div', ['class' => 'dump-source'], $edit_link . $value)
         );
     }
 
@@ -685,16 +680,16 @@ class DumpRender
     }
 
 
-    public static function assets_loader($on_load, $static_url)
+    public static function assetsLoader($onLoad, $staticURL): string
     {
         ob_start();
         ?>
         <script>
-            window.jQuery || document.write('<script src="<?php echo $static_url ?>/jquery.js"><\/script>');</script>
+            window.jQuery || document.write('<script src="<?= $staticURL ?>/jquery.js"><\/script>');</script>
         <script>
             var _dumpq = _dumpq || [];
             _dumpq.push(function () {
-                <?php echo $on_load ?>;
+                <?= $onLoad ?>;
             });
             (function ($, init) {
                 var loadq = function () {
@@ -705,8 +700,8 @@ class DumpRender
                 };
 
                 if (!init) {
-                    $.getScript("<?php echo $static_url ?>/dump.js", loadq);
-                    $("head").append($("<link rel='stylesheet' type='text/css' href='<?php echo $static_url ?>/dump.css' />"));
+                    $.getScript("<?= $staticURL ?>/dump.js", loadq);
+                    $("head").append($("<link rel='stylesheet' type='text/css' href='<?= $staticURL ?>/dump.css' />"));
                     init = 'loading';
                 } else if (init !== 'loading') {
                     loadq();
@@ -714,7 +709,7 @@ class DumpRender
             })(window.jQuery, window.init_dump);
         </script>
         <noscript>
-            <style>@import url("<?php echo $static_url ?>/dump.css");
+            <style>@import url("<?= $staticURL ?>/dump.css");
 
                 .dump-firstnode > li > .dump-content {
                     display: block;
@@ -725,7 +720,15 @@ class DumpRender
         return ob_get_clean();
     }
 
-    public static function html_attributes($attributes = '')
+    /**
+     * @deprecated use assetsLoader
+     */
+    public static function assets_loader($on_load, $static_url)
+    {
+        return self::assetsLoader($on_load, $static_url);
+    }
+
+    public static function htmlAttributes($attributes = ''): string
     {
         if (is_array($attributes)) {
             $atts = '';
@@ -750,12 +753,20 @@ class DumpRender
         return $attributes;
     }
 
-    public static function html_element($tag_name, $attributes, $content = null)
+    /**
+     * @deprecated use htmlAttributes
+     */
+    public static function html_attributes($attributes = '')
+    {
+        return self::htmlAttributes($attributes);
+    }
+
+    public static function htmlElement(string $tagName, $attributes, $content = null): string
     {
         // Check input data
         if (!isset($content)) {
             if (is_array($attributes)) {
-                return '<' . $tag_name . self::html_attributes($attributes) . ' />';
+                return '<' . $tagName . self::htmlAttributes($attributes) . ' />';
             } else {
                 $content = $attributes;
                 $attributes = null;
@@ -764,28 +775,36 @@ class DumpRender
 
         // Prepare content
         if (is_array($content)) {
-            $content_html = [];
-            foreach ($content as $child_element) {
-                if (is_array($child_element)) {
-                    $content_html[] = self::html_element(
-                        $child_element[0],
-                        $child_element[1],
-                        count($child_element) > 2 ? $child_element[2] : null
+            $contentHTML = [];
+            foreach ($content as $childElement) {
+                if (is_array($childElement)) {
+                    $contentHTML[] = self::htmlElement(
+                        $childElement[0],
+                        $childElement[1],
+                        count($childElement) > 2 ? $childElement[2] : null
                     );
                 } else {
-                    if (!empty($child_element)) {
-                        $content_html[] = $child_element;
+                    if (!empty($childElement)) {
+                        $contentHTML[] = $childElement;
                     }
                 }
             }
-            $content = implode('', $content_html);
+            $content = implode('', $contentHTML);
         }
 
         // Build element
         if (empty($attributes)) {
-            return "<$tag_name>$content</$tag_name>";
+            return "<{$tagName}>{$content}</{$tagName}>";
         } else {
-            return '<' . $tag_name . self::html_attributes($attributes) . ">$content</$tag_name>";
+            return "<{$tagName}" . self::htmlAttributes($attributes) . ">{$content}</{$tagName}>";
         }
+    }
+
+    /**
+     * @deprecated use htmlElement
+     */
+    public static function html_element($tag_name, $attributes, $content = null)
+    {
+        return self::htmlElement($tag_name, $attributes, $content);
     }
 }

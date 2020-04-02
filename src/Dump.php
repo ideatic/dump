@@ -22,7 +22,7 @@ abstract class Dump
     /**
      * @return DumpRender
      */
-    private static function _prepare_render()
+    private static function _prepareRender()
     {
         $render = new DumpRender();
         $render->format = 'html';
@@ -32,7 +32,7 @@ abstract class Dump
         return $render;
     }
 
-    private static function _load_helpers()
+    private static function _loadHelpers()
     {
         require_once dirname(__FILE__) . '/DumpRender.php';
     }
@@ -44,9 +44,9 @@ abstract class Dump
      */
     public static function show()
     {
-        self::_load_helpers();
+        self::_loadHelpers();
 
-        $render = self::_prepare_render();
+        $render = self::_prepareRender();
         $render->show_caller = false;
 
         $data = func_get_args();
@@ -60,9 +60,9 @@ abstract class Dump
      */
     public static function render()
     {
-        self::_load_helpers();
+        self::_loadHelpers();
 
-        $render = self::_prepare_render();
+        $render = self::_prepareRender();
         $render->show_caller = false;
 
         $data = func_get_args();
@@ -71,21 +71,27 @@ abstract class Dump
 
     /**
      * Gets information about one or more PHP variables and return it in plain text
-     *
-     * @return string
      */
-    public static function print_r($data, $show_types = true, $nesting_level = null, $format = 'json')
+    public static function printR($data, bool $showTypes = true, ?int $nestingLevel = null, string $format = 'json'): string
     {
-        self::_load_helpers();
+        self::_loadHelpers();
 
-        $render = self::_prepare_render();
+        $render = self::_prepareRender();
         $render->format = $format;
         $render->show_caller = false;
         $render->count_elements = false;
-        $render->show_types = $show_types;
-        $render->nesting_level = isset($nesting_level) ? $nesting_level : self::$nesting_level;
+        $render->show_types = $showTypes;
+        $render->nesting_level = isset($nestingLevel) ? $nestingLevel : self::$nesting_level;
 
         return $render->render([$data]);
+    }
+
+    /**
+     * @deprecated Use printR
+     */
+    public static function print_r($data, $show_types = true, $nesting_level = null, $format = 'json')
+    {
+        return self::printR($data, $show_types, $nesting_level, $format);
     }
 
     /**
@@ -93,17 +99,23 @@ abstract class Dump
      *
      * @param mixed $name Name of the analyzed var, or dictionary with several vars and names
      * @param mixed $value
-     *
-     * @return string
+     */
+    public static function renderData($name, $value, bool $showCaller = true, bool $showExtraInfo = true): string
+    {
+        self::_loadHelpers();
+
+        $render = self::_prepareRender();
+        $render->show_caller = $showCaller;
+        $render->show_extra_info = $showExtraInfo;
+        return $render->render($name, $value);
+    }
+
+    /**
+     * @deprecated use renderData
      */
     public static function render_data($name, $value, $show_caller = true, $show_extra_info = true)
     {
-        self::_load_helpers();
-
-        $render = self::_prepare_render();
-        $render->show_caller = $show_caller;
-        $render->show_extra_info = $show_extra_info;
-        return $render->render($name, $value);
+        return self::renderData($name, $value, $show_caller, $show_extra_info);
     }
 
 
@@ -139,7 +151,7 @@ abstract class Dump
 
             //Source code of the call to this step
             if (!empty($file) && !empty($line)) {
-                self::_load_helpers();
+                self::_loadHelpers();
                 $source = DumpRender::get_source($step['file'], $step['line']);
             } else {
                 $source = '';
@@ -150,7 +162,7 @@ abstract class Dump
             $function_args = [];
             if (isset($args)) {
                 if (in_array($function, $special_functions)) {
-                    $function_args = [self::clean_path($args[0])];
+                    $function_args = [self::cleanPath($args[0])];
                 } else {
                     if (!function_exists($function) || strpos($function, '{closure}') !== false) {
                         $params = null;
@@ -184,7 +196,7 @@ abstract class Dump
             $info = [
                 'function' => $function_call,
                 'args'     => $function_args,
-                'file'     => self::clean_path($file),
+                'file'     => self::cleanPath($file),
                 'line'     => $line,
                 'source'   => $source,
             ];
@@ -207,7 +219,7 @@ abstract class Dump
      *
      * @return string
      */
-    public static function backtrace_small(array $trace = null, $html = false, $rtl = false)
+    public static function backtraceSmall(array $trace = null, bool $html = false, bool $rtl = false): string
     {
         if (!$trace) {
             $trace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS);
@@ -222,10 +234,10 @@ abstract class Dump
             }
 
             //Generate HTML
-            self::_load_helpers();
+            self::_loadHelpers();
 
             if ($html) {
-                $output[] = DumpRender::html_element('abbr', ['title' => "$file:$line"], $class . $type . $function);
+                $output[] = DumpRender::htmlElement('abbr', ['title' => "$file:$line"], $class . $type . $function);
             } else {
                 $output[] = $class . $type . $function . '(' . $line . ')';
             }
@@ -239,6 +251,14 @@ abstract class Dump
     }
 
     /**
+     * @deprecated Use backtraceSmall
+     */
+    public static function backtrace_small(array $trace = null, $html = false, $rtl = false)
+    {
+        return self::backtraceSmall($trace, $html, $rtl);
+    }
+
+    /**
      * Renders source code of an specified programming language
      *
      * @param string $code
@@ -248,7 +268,7 @@ abstract class Dump
      */
     public static function source($code, $language = 'php', $editable = false, $attrs = [], $theme = 'default')
     {
-        self::_load_helpers();
+        self::_loadHelpers();
 
         $code = htmlspecialchars($code, ENT_NOQUOTES);
         $extra = '';
@@ -261,21 +281,18 @@ abstract class Dump
                 $tag = 'textarea';
             }
         }
-        $extra .= DumpRender::html_attributes($attrs);
+        $extra .= DumpRender::htmlAttributes($attrs);
         return "<{$tag} class=\"dump-code\" data-language=\"{$language}\" data-theme=\"{$theme}\" {$extra}>{$code}</{$tag}>" .
-               DumpRender::assets_loader('init_dump($(".dump-code"),{static_url:"' . self::$_static_url . '"})', self::$_static_url);
+               DumpRender::assetsLoader('init_dump($(".dump-code"),{static_url:"' . self::$_static_url . '"})', self::$_static_url);
     }
 
     /**
      * Clean a path, replacing the special folders defined in the config. E.g.:
      *         /home/project/www/index.php -> APP_PATH/index.php
      *
-     * @param string $path
-     * @param bool   $restore True for restore a cleared path to its original state
-     *
-     * @return string
+     * @param bool $restore True for restore a cleared path to its original state
      */
-    public static function clean_path($path, $restore = false)
+    public static function cleanPath(string $path, bool $restore = false): string
     {
         foreach (self::$_special_paths as $clean_path => $source_path) {
             if ($restore) {
@@ -294,11 +311,18 @@ abstract class Dump
         return $path;
     }
 
+    /**
+     * @deprecated Use cleanPath
+     */
+    public static function clean_path($path, $restore = false)
+    {
+        return self::cleanPath($path, $restore);
+    }
+
 }
 
 //Define shortcuts
 if (!function_exists('dump')) {
-
     /**
      * Echo information about the selected variable.
      * This function can be overwrited for autoload the DUMP class, e.g.:
@@ -316,11 +340,9 @@ if (!function_exists('dump')) {
     {
         call_user_func_array(['Dump', 'show'], func_get_args());
     }
-
 }
 
 if (!function_exists('dumpdie')) {
-
     function dumpdie()
     {
         //Clean all output buffers
@@ -334,5 +356,4 @@ if (!function_exists('dumpdie')) {
         //Exit
         die(1);
     }
-
 }
