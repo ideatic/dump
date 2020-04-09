@@ -8,15 +8,15 @@
 abstract class Dump
 {
 
-    private static $_static_url = '/dump-static';
-    private static $_special_paths = [];
+    private static $_staticURL = '/dump-static';
+    private static $_specialPaths = [];
     public static $nesting_level = 5;
 
-    public static function config($static_url = '/dump-static', $special_paths = [], $nesting_level = 5)
+    public static function config(string $staticURL = '/dump-static', array $specialPaths = [], int $nestingLevel = 5)
     {
-        self::$_static_url = $static_url;
-        self::$_special_paths = $special_paths;
-        self::$nesting_level = $nesting_level;
+        self::$_staticURL = $staticURL;
+        self::$_specialPaths = $specialPaths;
+        self::$nesting_level = $nestingLevel;
     }
 
     /**
@@ -27,7 +27,7 @@ abstract class Dump
         $render = new DumpRender();
         $render->format = 'html';
         $render->nesting_level = self::$nesting_level;
-        $render->assets_url = self::$_static_url;
+        $render->assets_url = self::$_staticURL;
 
         return $render;
     }
@@ -196,7 +196,7 @@ abstract class Dump
             $info = [
                 'function' => $function_call,
                 'args'     => $function_args,
-                'file'     => self::cleanPath($file),
+                'file'     => isset($file) ? self::cleanPath($file) : null,
                 'line'     => $line,
                 'source'   => $source,
             ];
@@ -283,7 +283,7 @@ abstract class Dump
         }
         $extra .= DumpRender::htmlAttributes($attrs);
         return "<{$tag} class=\"dump-code\" data-language=\"{$language}\" data-theme=\"{$theme}\" {$extra}>{$code}</{$tag}>" .
-               DumpRender::assetsLoader('init_dump($(".dump-code"),{static_url:"' . self::$_static_url . '"})', self::$_static_url);
+               DumpRender::assetsLoader('init_dump($(".dump-code"),{static_url:"' . self::$_staticURL . '"})', self::$_staticURL);
     }
 
     /**
@@ -292,18 +292,20 @@ abstract class Dump
      *
      * @param bool $restore True for restore a cleared path to its original state
      */
-    public static function cleanPath(string $path, bool $restore = false): string
+    public static function cleanPath(?string $path, bool $restore = false): string
     {
-        foreach (self::$_special_paths as $clean_path => $source_path) {
-            if ($restore) {
-                if (strpos($path, $clean_path) === 0) {
-                    $path = $source_path . substr($path, strlen($clean_path));
-                    break;
-                }
-            } else {
-                if (strpos($path, $source_path) === 0) {
-                    $path = $clean_path . substr($path, strlen($source_path));
-                    break;
+        if ($path) {
+            foreach (self::$_specialPaths as $clean_path => $source_path) {
+                if ($restore) {
+                    if (strpos($path, $clean_path) === 0) {
+                        $path = $source_path . substr($path, strlen($clean_path));
+                        break;
+                    }
+                } else {
+                    if (strpos($path, $source_path) === 0) {
+                        $path = $clean_path . substr($path, strlen($source_path));
+                        break;
+                    }
                 }
             }
         }
