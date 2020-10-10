@@ -355,9 +355,15 @@ class DumpRender
             $data = $e->getData();
             $children[] = $this->_render('Data', $data, $level + 1);
         }
+
+        $code = $e->getCode();
+        $children[] = $this->_render('Code', $code, $level + 1);
+
         if (method_exists($e, 'getPrevious')) {
             $data = $e->getPrevious();
-            $children[] = $this->_render('Previous', $data, $level + 1);
+            if ($data !== null) {
+                $children[] = $this->_render('Previous', $data, $level + 1);
+            }
         }
         if (method_exists($e, 'getUserMessage')) {
             $data = $e->getUserMessage();
