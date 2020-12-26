@@ -338,11 +338,15 @@ class DumpRender
         }
         if (method_exists($e, 'getData')) {
             $data = $e->getData();
-            $children[] = $this->_render('Data', $data, $level + 1);
+            if ($data !== null) {
+                $children[] = $this->_render('Data', $data, $level + 1);
+            }
         }
 
         $code = $e->getCode();
-        $children[] = $this->_render('Code', $code, $level + 1);
+        if ($code) {
+            $children[] = $this->_render('Code', $code, $level + 1);
+        }
 
         if (method_exists($e, 'getPrevious')) {
             $data = $e->getPrevious();
@@ -352,7 +356,9 @@ class DumpRender
         }
         if (method_exists($e, 'getUserMessage')) {
             $data = $e->getUserMessage();
-            $children[] = $this->_render('UserMessage', $data, $level + 1);
+            if ($data) {
+                $children[] = $this->_render('UserMessage', $data, $level + 1);
+            }
         }
 
         // Backtrace (en modo texto)
@@ -640,7 +646,7 @@ class DumpRender
      * Read the source code from a file, centered in a line number, with a specific padding and applying a highlight
      * @internal
      */
-    public static function getSource(string $file,int $lineNumber, int$padding = 10): ?string
+    public static function getSource(string $file, int $lineNumber, int $padding = 10): ?string
     {
         if (!$file || !is_readable($file)) { // Error de lectura
             return null;
