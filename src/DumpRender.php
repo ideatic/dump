@@ -5,36 +5,28 @@
  */
 class DumpRender
 {
-    public $show_caller = true;
-    public $show_types = true;
-    public $show_extra_info = true;
-    public $format = 'html';
+    public bool $showCaller = true;
+    public bool $showTypes = true;
+    public bool $showExtraInfo = true;
+    public string $format = 'html';
 
-    public $count_elements = true;
+    public bool $countElements = true;
 
-    /**
-     * Max nesting level to render
-     * @var int
-     */
-    public $nesting_level;
+    /** @var int Max nesting level to render */
+    public int $nestingLevel;
 
-    /**
-     * URL to Dump assets
-     * @var string
-     */
-    public $assets_url;
+    /** @var string URL to assets */
+    public string $assetsURL;
 
-    private $_recursion_objects;
+    private $_recursionObjects;
 
     /**
      * Gets information about one or more PHP variables and return it in HTML code.
      *
      * @param mixed $name Name of the analyzed var, or dictionary with several vars and names
      * @param mixed $value
-     *
-     * @return string
      */
-    public function render($name, $value = null)
+    public function render($name, $value = null): string
     {
         // Prepare data
         if (is_array($name)) {
@@ -43,10 +35,10 @@ class DumpRender
             $data = [$name => $value];
         }
 
-        $show_caller = $this->show_caller;
+        $show_caller = $this->showCaller;
         // Render data
         if (count($data) == 1 && (($e = reset($data)) instanceof Exception || ($e = reset($data)) instanceof Throwable)) {
-            $this->_recursion_objects = [];
+            $this->_recursionObjects = [];
             $inner = [$this->_renderException('', $e)];
 
             // Caller info
@@ -57,11 +49,11 @@ class DumpRender
         } else {
             $inner = [];
             foreach ($data as $name => $value) {
-                $this->_recursion_objects = [];
+                $this->_recursionObjects = [];
 
                 $inner[] = $this->_render(empty($name) || is_numeric($name) ? ($this->format == 'html' ? '...' : '') : $name, $value);
 
-                $this->_recursion_objects = null;
+                $this->_recursionObjects = null;
             }
 
             // Caller info
@@ -85,7 +77,7 @@ class DumpRender
             $result[] = '<div class="dump">';
 
             // Loader
-            $result[] = self::assetsLoader('init_dump($(".dump"),{static_url:"' . $this->assets_url . '"})', $this->assets_url);
+            $result[] = self::assetsLoader('init_dump($(".dump"),{static_url:"' . $this->assetsURL . '"})', $this->assetsURL);
 
             // Body
             $result[] = '<ul class="dump-node dump-firstnode"><li>';
@@ -112,10 +104,10 @@ class DumpRender
         return implode('', $result);
     }
 
-    private function _render($name, &$data, $level = 0, $metadata = null)
+    private function _render(string $name, &$data, int $level = 0, ?string $metadata = null): string
     {
-        $memory_limit = $this->_returnBytes(ini_get('memory_limit'));
-        if ($memory_limit > 0 && memory_get_usage() > $memory_limit * 0.75) {
+        $memoryLimit = $this->_returnBytes(ini_get('memory_limit'));
+        if ($memoryLimit > 0 && memory_get_usage() > $memoryLimit * 0.75) {
             $render = $this->_renderItem($name, '&times;', 'Memory exhausted', $level, $metadata);
         } elseif ($data instanceof Exception || $data instanceof Throwable) {
             $render = $this->_renderException($name, $data, $level);
@@ -174,11 +166,11 @@ class DumpRender
         return $render;
     }
 
-    private function _renderItem($name, $type, $value, $level, $metadata = '', $extraInfo = '', $children = null, $class = null): string
+    private function _renderItem(string $name, string $type, $value, int $level, ?string $metadata = null, string $extraInfo = '', $children = null, $class = null): string
     {
         // Variable info
         $info = '';
-        if (!empty($type) && $this->show_types) {
+        if (!empty($type) && $this->showTypes) {
             $content = !empty($metadata) ? "{$metadata}, {$type}" : $type;
             if ($this->format == 'html') {
                 $info .= $this->htmlElement('span', ['class' => 'dump-type'], $content);
@@ -209,7 +201,7 @@ class DumpRender
                 ['class' => ['dump-header', $class, empty($children) ? '' : ' dump-collapsed']],
                 [
                     ['span', ['class' => 'dump-name'], htmlspecialchars($name)],
-                    empty($info) || !$this->show_extra_info ? '' : " ({$info})",
+                    empty($info) || !$this->showExtraInfo ? '' : " ({$info})",
                     ' ',
                     ['span', ['class' => 'dump-value'], htmlspecialchars($value)],
                 ]
@@ -236,24 +228,24 @@ class DumpRender
             }
 
             // Value
-            $type_info = !empty($info) && $this->show_types ? $info : '';
+            $typeInfo = !empty($info) && $this->showTypes ? $info : '';
             if ($this->format == 'json') {
                 if ($type == 'String') {
                     $result[] = "\"{$value}\"";
-                    $type_info = false;
+                    $typeInfo = false;
                 } elseif ($type == 'NULL') {
                     $result[] = 'NULL';
-                    $type_info = false;
+                    $typeInfo = false;
                 } elseif ($type == 'Integer' || $type == 'Boolean' || $type == 'Float') {
                     $result[] = $value;
 
                     if (!($type == 'Float' && ctype_digit("{$value}"))) {// Si es float pero sin decimales, mostrar el tipo
-                        $type_info = false;
+                        $typeInfo = false;
                     }
                 } elseif ($type == 'Object') {
-                    $type_info = preg_replace('/^Object\,?\s*/i', $value . ', ', $type_info);
+                    $typeInfo = preg_replace('/^Object\,?\s*/i', $value . ', ', $typeInfo);
                 } elseif ($type == 'Array') {
-                    $type_info = preg_replace('/^Array\,?\s*/i', '', $type_info);// Ya se diferencian arrays de objetos
+                    $typeInfo = preg_replace('/^Array\,?\s*/i', '', $typeInfo);// Ya se diferencian arrays de objetos
                 } else {
                     $result[] = $value . ' ';
                 }
@@ -262,11 +254,11 @@ class DumpRender
             }
 
             // Value info
-            if ($type_info && $this->format != 'json') {
-                $result[] = " ({$type_info})";
-            }
-
             if ($this->format != 'json') {
+                if ($typeInfo) {
+                    $result[] = " ({$typeInfo})";
+                }
+
                 $result[] = "\n";
             }
 
@@ -275,8 +267,8 @@ class DumpRender
 
                 if ($this->format == 'json') {
                     $result[] = $opener;
-                    if ($type_info) {
-                        $result[] = " // {$type_info}";
+                    if ($typeInfo) {
+                        $result[] = str_replace(', 1 fields', '', " // {$typeInfo}");
                     }
                 } else {
                     $result[] = $opener;
@@ -296,9 +288,9 @@ class DumpRender
                 if ($type == 'Array') {
                     $result[] = "[]\n";
                 } elseif ($type == 'Object') {
-                    $result[] = "{} // {$type_info}\n";
-                } elseif ($type_info) {
-                    $result[] = " // {$type_info}";
+                    $result[] = "{} // {$typeInfo}\n";
+                } elseif ($typeInfo) {
+                    $result[] = " // {$typeInfo}";
                 }
             }
         }
@@ -306,14 +298,7 @@ class DumpRender
         return implode('', $result);
     }
 
-    /**
-     * @param                     $name
-     * @param Exception|Throwable $e
-     * @param int                 $level
-     *
-     * @return string
-     */
-    private function _renderException($name, $e, $level = 0)
+    private function _renderException(string $name, Throwable $e, int $level = 0): string
     {
         $children = [];
 
@@ -335,10 +320,10 @@ class DumpRender
                 }
             }
             if (!isset($source)) {
-                $source = self::get_source($e->getFile(), $e->getLine());
+                $source = self::getSource($e->getFile(), $e->getLine());
             }
             if (!empty($source)) {
-                $children[] = $this->_renderSourceCode('Source', $source, $path, $e->getLine());
+                $children[] = $this->_renderSourceCode('Source', $source, $e->getLine(), $path);
             }
         } else {
             $children[] = $this->_renderItem('Location', '', $path . ':' . $e->getLine(), $level + 1);
@@ -407,9 +392,9 @@ class DumpRender
         }
     }
 
-    private function _renderArray($name, $data, $level = 0, $metadata = '', $ignoredKeys = [])
+    private function _renderArray(string $name, array $data, int $level = 0, ?string $metadata = null, array $ignoredKeys = []): string
     {
-        if ($level < $this->nesting_level || empty($data)) {// Render items
+        if ($level < $this->nestingLevel || empty($data)) {// Render items
             $children = [];
 
             $ignoreKeys = false;
@@ -453,15 +438,15 @@ class DumpRender
         }
 
         // Render item
-        return $this->_renderItem($name, 'Array', '', $level, $metadata, $this->count_elements ? (count($data) . ' items') : '', $children);
+        return $this->_renderItem($name, 'Array', '', $level, $metadata, $this->countElements ? (count($data) . ' items') : '', $children);
     }
 
-    private function _renderObject($name, $data, $level = 0, $metadata = '', $ignored_properties = [])
+    private function _renderObject(string $name, $data, int $level = 0, ?string $metadata = null, array $ignoredProperties = []): string
     {
-        $recursive = $level > 4 && in_array($data, $this->_recursion_objects, true);
+        $recursive = $level > 4 && in_array($data, $this->_recursionObjects, true);
 
-        $properties_count = 0;
-        if ($level < $this->nesting_level && !$recursive) {
+        $propertiesCount = 0;
+        if ($level < $this->nestingLevel && !$recursive) {
             // Render object fields
             $children = [];
 
@@ -474,11 +459,11 @@ class DumpRender
             } else {
                 if (!($data instanceof stdClass) && class_exists('ReflectionClass', false)) {
                     $current = new ReflectionClass($data);
-                    $private_data = null;
+                    $privateData = null;
                     while ($current !== false) {
                         foreach ($current->getProperties() as $property) {
                             /* @var $property ReflectionProperty */
-                            if (in_array($property->name, $ignored_properties)) {
+                            if (in_array($property->name, $ignoredProperties)) {
                                 continue;
                             }
 
@@ -507,12 +492,12 @@ class DumpRender
                                     $property->setAccessible(true);
                                     $value = $property->getValue($data);
                                 } else {
-                                    if (!isset($private_data)) { // Initialize object private data
-                                        $private_data = $this->_getPrivateData($data, []);
+                                    if (!isset($privateData)) { // Initialize object private data
+                                        $privateData = $this->_getPrivateData($data, []);
                                     }
 
-                                    if (array_key_exists($property->name, $private_data)) {
-                                        $value = $private_data[$property->name];
+                                    if (array_key_exists($property->name, $privateData)) {
+                                        $value = $privateData[$property->name];
                                     } else {
                                         $value = '?';
                                     }
@@ -522,10 +507,10 @@ class DumpRender
                             }
 
                             $children[] = $this->_render($property->name, $value, $level + 1, implode(', ', $meta));
-                            $ignored_properties[] = $property->name;
+                            $ignoredProperties[] = $property->name;
                         }
                         $current = $current->getParentClass();
-                        $properties_count = count($ignored_properties);
+                        $propertiesCount = count($ignoredProperties);
                     }
                 }
 
@@ -539,31 +524,31 @@ class DumpRender
 
             // Add properties as child of the current node
             foreach ($properties as $key => $value) {
-                if (in_array($key, $ignored_properties)) {
+                if (in_array($key, $ignoredProperties)) {
                     continue;
                 }
 
                 $children[] = $this->_render($key, $value, $level + 1);
-                $properties_count++;
+                $propertiesCount++;
             }
 
-            $this->_recursion_objects[] = $data;
+            $this->_recursionObjects[] = $data;
         } else {
             $children = '∞';
         }
 
         // Render item
-        return $this->_renderItem($name, 'Object', get_class($data), $level, $metadata, "{$properties_count} fields", $children);
+        return $this->_renderItem($name, 'Object', get_class($data), $level, $metadata, "{$propertiesCount} fields", $children);
     }
 
-    private function _getPrivateData($object, $default = false)
+    private function _getPrivateData($object, $default = null)
     {
         for ($method = 0; $method < 2; $method++) {
             try {
-                $raw_data = false;
+                $rawData = false;
                 if ($method == 0) {
                     // Based on a hack to access private properties: http://derickrethans.nl/private-properties-exposed.html
-                    $raw_data = (array)$object;
+                    $rawData = (array)$object;
                 } elseif ($method == 1) {
                     // Try to get it using serialize()
                     $class_name = get_class($object);
@@ -580,14 +565,14 @@ class DumpRender
                         );
 
                         if ($serialized != $serialized_array) {
-                            $raw_data = unserialize($serialized_array);
+                            $rawData = unserialize($serialized_array);
                         }
                     }
                 }
 
-                if ($raw_data !== false) {
+                if ($rawData !== false) {
                     $data = [];
-                    foreach ($raw_data as $key => $value) {
+                    foreach ($rawData as $key => $value) {
                         $pos = strrpos($key, "\0");
 
                         if ($pos !== false) // Remove special names given by php ( "\0*\0" for protected fields, "\0$class_name\0" for private)
@@ -611,10 +596,8 @@ class DumpRender
 
     /**
      * Convert PHP config size to bytes (11M -> 11*1024*1024)
-     *
-     * @param string $val
      */
-    private function _returnBytes($val): int
+    private function _returnBytes(string $val): int
     {
         $val = trim($val);
         $last = strtolower($val[strlen($val) - 1]);
@@ -637,7 +620,7 @@ class DumpRender
         return $val;
     }
 
-    private function _renderSourceCode($name, $value, $level, $file = null, $line = null)
+    private function _renderSourceCode(string $name, $value, int $level, string $file = null, int $line = null)
     {
         $edit_link = '';
         return $this->_renderItem(
@@ -655,21 +638,20 @@ class DumpRender
 
     /**
      * Read the source code from a file, centered in a line number, with a specific padding and applying a highlight
-     * @return string
      * @internal
      */
-    public static function get_source($file, $line_number, $padding = 10)
+    public static function getSource(string $file,int $lineNumber, int$padding = 10): ?string
     {
         if (!$file || !is_readable($file)) { // Error de lectura
-            return false;
+            return null;
         }
 
         // Open file
         $file = fopen($file, 'r');
 
         // Set padding
-        $start = max(1, $line_number - $padding);
-        $end = $line_number + $padding;
+        $start = max(1, $lineNumber - $padding);
+        $end = $lineNumber + $padding;
 
         $source = [];
         for ($line = 1; ($row = fgets($file)) !== false && $line < $end; $line++) {
@@ -681,12 +663,12 @@ class DumpRender
         // Close file
         fclose($file);
 
-        return '<pre class="dump-code" data-language="php" data-from="' . $start . '" data-highlight="' . $line_number .
+        return '<pre class="dump-code" data-language="php" data-from="' . $start . '" data-highlight="' . $lineNumber .
                '" data-theme="graynight">' . implode('', $source) . '</pre>';
     }
 
 
-    public static function assetsLoader($onLoad, $staticURL): string
+    public static function assetsLoader(string $onLoadCode, string $staticURL): string
     {
         ob_start();
         ?>
@@ -695,7 +677,7 @@ class DumpRender
         <script>
             var _dumpq = _dumpq || [];
             _dumpq.push(function () {
-                <?= $onLoad ?>;
+                <?= $onLoadCode ?>;
             });
             (function ($, init) {
                 var loadq = function () {
@@ -726,14 +708,6 @@ class DumpRender
         return ob_get_clean();
     }
 
-    /**
-     * @deprecated use assetsLoader
-     */
-    public static function assets_loader($on_load, $static_url)
-    {
-        return self::assetsLoader($on_load, $static_url);
-    }
-
     public static function htmlAttributes($attributes = ''): string
     {
         if (is_array($attributes)) {
@@ -757,14 +731,6 @@ class DumpRender
             return $atts;
         }
         return $attributes;
-    }
-
-    /**
-     * @deprecated use htmlAttributes
-     */
-    public static function html_attributes($attributes = '')
-    {
-        return self::htmlAttributes($attributes);
     }
 
     public static function htmlElement(string $tagName, $attributes, $content = null): string
@@ -804,13 +770,5 @@ class DumpRender
         } else {
             return "<{$tagName}" . self::htmlAttributes($attributes) . ">{$content}</{$tagName}>";
         }
-    }
-
-    /**
-     * @deprecated use htmlElement
-     */
-    public static function html_element($tag_name, $attributes, $content = null)
-    {
-        return self::htmlElement($tag_name, $attributes, $content);
     }
 }
