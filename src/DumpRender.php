@@ -61,9 +61,7 @@ class DumpRender
                 $action = 'Called';
                 $trace = debug_backtrace();
                 while ($step = array_pop($trace)) {
-                    if (stripos($step['function'], 'dump') === 0 ||
-                        (isset($step['class']) && strToLower($step['class']) == 'dump')
-                    ) {
+                    if (stripos($step['function'], 'dump') === 0 || (isset($step['class']) && strToLower($step['class']) == 'dump')) {
                         break;
                     }
                 }
@@ -400,12 +398,12 @@ class DumpRender
 
     private function _renderArray(string $name, array $data, int $level = 0, ?string $metadata = null, array $ignoredKeys = []): string
     {
-        if ($level < $this->nestingLevel || empty($data)) {// Render items
+        if ($level < $this->nestingLevel || empty($data)) { // Render items
             $children = [];
 
             $ignoreKeys = false;
             $allScalar = false;
-            if ($this->format == 'json') {// Ignore keys in normal zero-based indexed arrays
+            if ($this->format == 'json') { // Ignore keys in normal zero-based indexed arrays (array_is_list)
                 $i = 0;
                 $ignoreKeys = true;
                 $allScalar = true;
@@ -430,13 +428,13 @@ class DumpRender
             }
 
             if ($this->format == 'json' && $ignoreKeys && $allScalar) {
-                $total_length = 0;
+                $totalLength = 0;
                 foreach ($children as $child) {
-                    $total_length += strlen($child);
+                    $totalLength += strlen($child);
                 }
 
-                if ($total_length < 450) {
-                    return "{$name}: [" . str_replace(["\n", "\t"], '', implode(', ', $children)) . ']';
+                if ($totalLength < 450) {
+                    return ($name ? "{$name}: " : '') . '[' . str_replace(["\n", "\t"], '', implode(', ', $children)) . ']';
                 }
             }
         } else {

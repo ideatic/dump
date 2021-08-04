@@ -81,7 +81,7 @@ abstract class Dump
         $render->showCaller = false;
         $render->countElements = false;
         $render->showTypes = $showTypes;
-        $render->nestingLevel = isset($nestingLevel) ? $nestingLevel : self::$nestingLevel;
+        $render->nestingLevel = $nestingLevel ?? self::$nestingLevel;
 
         return $render->render([$data]);
     }
