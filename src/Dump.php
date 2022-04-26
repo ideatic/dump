@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 /**
  * Debugging tool which displays information about any PHP variable, class or exception.
  * Inspired in Krumo by mrasnika (http://krumo.sourceforge.net/)
@@ -8,64 +10,55 @@
 abstract class Dump
 {
 
-    private static $_staticURL = '/dump-static';
-    private static $_specialPaths = [];
-    public static $nesting_level = 5;
+    private static string $_staticURL = '/dump-static';
+    private static array $_specialPaths = [];
+    public static int $nestingLevel = 5;
 
-    public static function config(string $staticURL = '/dump-static', array $specialPaths = [], int $nestingLevel = 5)
+    public static function config(string $staticURL = '/dump-static', array $specialPaths = [], int $nestingLevel = 5): void
     {
         self::$_staticURL = $staticURL;
         self::$_specialPaths = $specialPaths;
-        self::$nesting_level = $nestingLevel;
+        self::$nestingLevel = $nestingLevel;
     }
 
-    /**
-     * @return DumpRender
-     */
-    private static function _prepareRender()
+    private static function _prepareRender(): DumpRender
     {
         $render = new DumpRender();
         $render->format = 'html';
-        $render->nesting_level = self::$nesting_level;
-        $render->assets_url = self::$_staticURL;
+        $render->nestingLevel = self::$nestingLevel;
+        $render->assetsURL = self::$_staticURL;
 
         return $render;
     }
 
-    private static function _loadHelpers()
+    private static function _loadHelpers(): void
     {
         require_once dirname(__FILE__) . '/DumpRender.php';
     }
 
     /**
      * Display information about one or more PHP variables
-     *
-     * @param mixed $var
      */
-    public static function show()
+    public static function show(...$data): void
     {
         self::_loadHelpers();
 
         $render = self::_prepareRender();
-        $render->show_caller = false;
+        $render->showCaller = false;
 
-        $data = func_get_args();
         echo $render->render($data);
     }
 
     /**
      * Gets information about one or more PHP variables and return it in HTML code
-     *
-     * @return string
      */
-    public static function render()
+    public static function render(...$data): string
     {
         self::_loadHelpers();
 
         $render = self::_prepareRender();
-        $render->show_caller = false;
+        $render->showCaller = false;
 
-        $data = func_get_args();
         return $render->render($data);
     }
 
@@ -78,44 +71,27 @@ abstract class Dump
 
         $render = self::_prepareRender();
         $render->format = $format;
-        $render->show_caller = false;
-        $render->count_elements = false;
-        $render->show_types = $showTypes;
-        $render->nesting_level = isset($nestingLevel) ? $nestingLevel : self::$nesting_level;
+        $render->showCaller = false;
+        $render->countElements = false;
+        $render->showTypes = $showTypes;
+        $render->nestingLevel = $nestingLevel ?? self::$nestingLevel;
 
         return $render->render([$data]);
-    }
-
-    /**
-     * @deprecated Use printR
-     */
-    public static function print_r($data, $show_types = true, $nesting_level = null, $format = 'json')
-    {
-        return self::printR($data, $show_types, $nesting_level, $format);
     }
 
     /**
      * Gets information about one or more PHP variables and return it in HTML code.
      *
      * @param mixed $name Name of the analyzed var, or dictionary with several vars and names
-     * @param mixed $value
      */
-    public static function renderData($name, $value, bool $showCaller = true, bool $showExtraInfo = true): string
+    public static function renderData(mixed $name, mixed $value, bool $showCaller = true, bool $showExtraInfo = true): string
     {
         self::_loadHelpers();
 
         $render = self::_prepareRender();
-        $render->show_caller = $showCaller;
-        $render->show_extra_info = $showExtraInfo;
+        $render->showCaller = $showCaller;
+        $render->showExtraInfo = $showExtraInfo;
         return $render->render($name, $value);
-    }
-
-    /**
-     * @deprecated use renderData
-     */
-    public static function render_data($name, $value, $show_caller = true, $show_extra_info = true)
-    {
-        return self::renderData($name, $value, $show_caller, $show_extra_info);
     }
 
 
@@ -129,30 +105,28 @@ abstract class Dump
      * 'line': line of the file where the call occurs
      * 'source': source code where the call comes (in HTML format)
      *
-     * @param array $ call stack trace to be analyzed, if not use this parameter indicates the call stack before the function
+     * @param array $trace Trace to be analyzed, if not use this parameter indicates the call stack before the function
      *
-     * @return array
+     * @throws ReflectionException
      */
-    public static function backtrace(array $trace = null)
+    public static function backtrace(array $trace = null): array
     {
-        if ($trace === null) {
-            $trace = debug_backtrace();
-        }
+        $trace ??= debug_backtrace();
 
         //"Special" functions
         $special_functions = ['include', 'include_once', 'require', 'require_once'];
 
         $output = [];
-        foreach ($trace as $i => $step) {
+        foreach ($trace as $step) {
             //Get data from the current step
             foreach (['class', 'type', 'function', 'file', 'line', 'args', 'object'] as $param) {
-                $$param = isset($step[$param]) ? $step[$param] : null;
+                $$param = $step[$param] ?? null;
             }
 
             //Source code of the call to this step
             if (!empty($file) && !empty($line)) {
                 self::_loadHelpers();
-                $source = DumpRender::get_source($step['file'], $step['line']);
+                $source = DumpRender::getSource($step['file'], $step['line']);
             } else {
                 $source = '';
             }
@@ -164,17 +138,12 @@ abstract class Dump
                 if (in_array($function, $special_functions)) {
                     $function_args = [self::cleanPath($args[0])];
                 } else {
-                    if (!function_exists($function) || strpos($function, '{closure}') !== false) {
+                    if (!function_exists($function) || str_contains($function, '{closure}')) {
                         $params = null;
                     } else {
                         if (class_exists('ReflectionMethod', false)) {
                             if (isset($class)) {
-                                $reflection = new ReflectionMethod(
-                                    $class, method_exists(
-                                    $class,
-                                    $function
-                                ) ? $function : '__call'
-                                );
+                                $reflection = new ReflectionMethod($class, method_exists($class, $function) ? $function : '__call');
                             } else {
                                 $reflection = new ReflectionFunction($function);
                             }
@@ -209,6 +178,7 @@ abstract class Dump
 
             $output[] = $info;
         }
+
         return $output;
     }
 
@@ -216,8 +186,6 @@ abstract class Dump
      * Renders an abbreviated version of the backtrace
      *
      * @param array $ call stack trace to be analyzed, if not use this parameter indicates the call stack before the function
-     *
-     * @return string
      */
     public static function backtraceSmall(array $trace = null, bool $html = false, bool $rtl = false): string
     {
@@ -230,16 +198,16 @@ abstract class Dump
         foreach ($trace as $step) {
             //Get data from the current step
             foreach (['class', 'type', 'function', 'file', 'line', 'args'] as $param) {
-                $$param = isset($step[$param]) ? $step[$param] : '';
+                $$param = $step[$param] ?? '';
             }
 
             //Generate HTML
             self::_loadHelpers();
 
             if ($html) {
-                $output[] = DumpRender::htmlElement('abbr', ['title' => "$file:$line"], $class . $type . $function);
+                $output[] = DumpRender::htmlElement('abbr', ['title' => "{$file}:{$line}"], "{$class}{$type}{$function}");
             } else {
-                $output[] = $class . $type . $function . '(' . $line . ')';
+                $output[] = "{$class}{$type}{$function}:{$line}";
             }
         }
 
@@ -251,22 +219,9 @@ abstract class Dump
     }
 
     /**
-     * @deprecated Use backtraceSmall
-     */
-    public static function backtrace_small(array $trace = null, $html = false, $rtl = false)
-    {
-        return self::backtraceSmall($trace, $html, $rtl);
-    }
-
-    /**
      * Renders source code of an specified programming language
-     *
-     * @param string $code
-     * @param string $language
-     *
-     * @return string
      */
-    public static function source($code, $language = 'php', $editable = false, $attrs = [], $theme = 'default')
+    public static function source(string $code, string $language = 'php', bool $editable = false, array $attrs = [], string $theme = 'default'): string
     {
         self::_loadHelpers();
 
@@ -297,12 +252,12 @@ abstract class Dump
         if ($path) {
             foreach (self::$_specialPaths as $clean_path => $source_path) {
                 if ($restore) {
-                    if (strpos($path, $clean_path) === 0) {
+                    if (str_starts_with($path, $clean_path)) {
                         $path = $source_path . substr($path, strlen($clean_path));
                         break;
                     }
                 } else {
-                    if (strpos($path, $source_path) === 0) {
+                    if (str_starts_with($path, $source_path)) {
                         $path = $clean_path . substr($path, strlen($source_path));
                         break;
                     }
@@ -312,15 +267,6 @@ abstract class Dump
 
         return $path;
     }
-
-    /**
-     * @deprecated Use cleanPath
-     */
-    public static function clean_path($path, $restore = false)
-    {
-        return self::cleanPath($path, $restore);
-    }
-
 }
 
 //Define shortcuts
@@ -329,33 +275,32 @@ if (!function_exists('dump')) {
      * Echo information about the selected variable.
      * This function can be overwrited for autoload the DUMP class, e.g.:
      * @code
-     * function dump() {
+     * function dump(...$data) {
      *      if (!class_exists('Dump', FALSE)) {
      *          require SYS_PATH . '/vendor/Dump.php';
      *          Dump::config(...);
      *      }
-     *      call_user_func_array(array('Dump', 'show'), func_get_args());
+     *      call_user_func_array(array('Dump', 'show'), $data);
      * }
      * @endcode
      */
-    function dump()
+    function dump(...$data): void
     {
-        call_user_func_array(['Dump', 'show'], func_get_args());
+        call_user_func_array(['Dump', 'show'], $data);
     }
 }
 
 if (!function_exists('dumpdie')) {
-    function dumpdie()
+    function dumpdie(...$data): void
     {
-        //Clean all output buffers
+        // Clean all output buffers
         while (ob_get_clean()) {
-            ;
         }
 
-        //Dump info
-        call_user_func_array('dump', func_get_args());
+        // Dump info
+        call_user_func_array('dump', $data);
 
-        //Exit
+        // Exit
         die(1);
     }
 }

@@ -1,6 +1,6 @@
-<?php
+<?php /** @noinspection ALL */
 
-function dump() {
+function dump(...$data) {
     if (!class_exists('Dump')) {
         require '../src/Dump.php';
         //Configuration
@@ -9,7 +9,7 @@ function dump() {
                 )
         );
     }
-    call_user_func_array(array('Dump', 'show'), func_get_args());
+    call_user_func_array(array('Dump', 'show'), $data);
 }
 
 function do_test() {
