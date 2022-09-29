@@ -165,7 +165,7 @@ class DumpRender
         return $render;
     }
 
-    private function _renderItem(string $name, string $type, $value, int $level, ?string $metadata = null, string $extraInfo = '', $children = null, $class = null): string
+    private function _renderItem(string $name, string $type, mixed $value, int $level, ?string $metadata = null, string $extraInfo = '', $children = null, $class = null): string
     {
         // Variable info
         $info = '';
@@ -532,7 +532,7 @@ class DumpRender
                     continue;
                 }
 
-                $children[] = $this->_render($key, $value, $level + 1);
+                $children[] = $this->_render((string)$key, $value, $level + 1);
                 $propertiesCount++;
             }
 

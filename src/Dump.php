@@ -291,7 +291,7 @@ if (!function_exists('dump')) {
 }
 
 if (!function_exists('dumpdie')) {
-    function dumpdie(...$data): void
+    function dumpdie(...$data): never
     {
         // Clean all output buffers
         while (ob_get_clean()) {
