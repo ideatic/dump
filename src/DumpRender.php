@@ -165,8 +165,16 @@ class DumpRender
         return $render;
     }
 
-    private function _renderItem(string $name, string $type, mixed $value, int $level, ?string $metadata = null, string $extraInfo = '', $children = null, $class = null): string
-    {
+    private function _renderItem(
+        string $name,
+        string $type,
+        mixed $value,
+        int $level,
+        ?string $metadata = null,
+        string $extraInfo = '',
+        $children = null,
+        $class = null
+    ): string {
         // Variable info
         $info = '';
         if (!empty($type) && $this->showTypes) {
@@ -405,18 +413,13 @@ class DumpRender
             $ignoreKeys = false;
             $allScalar = false;
             if ($this->format == 'json') { // Ignore keys in normal zero-based indexed arrays (array_is_list)
-                $i = 0;
-                $ignoreKeys = true;
+                $ignoreKeys = array_is_list($data);
                 $allScalar = true;
-                foreach ($data as $key => $value) {
-                    if ($i !== $key) {
-                        $ignoreKeys = false;
-                        break;
-                    }
+                foreach ($data as $value) {
                     if (!is_scalar($value)) {
                         $allScalar = false;
+                        break;
                     }
-                    $i++;
                 }
             }
 
