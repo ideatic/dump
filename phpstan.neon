@@ -1,0 +1,8 @@
+parameters:
+  level: 6
+  paths:
+      - ./src
+  ignoreErrors:
+    - '#no value type specified in iterable type array#'
+  parallel:
+    processTimeout: 300.0

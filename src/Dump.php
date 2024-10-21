@@ -39,7 +39,7 @@ abstract class Dump
     /**
      * Display information about one or more PHP variables
      */
-    public static function show(...$data): void
+    public static function show(mixed ...$data): void
     {
         self::_loadHelpers();
 
@@ -52,7 +52,7 @@ abstract class Dump
     /**
      * Gets information about one or more PHP variables and return it in HTML code
      */
-    public static function render(...$data): string
+    public static function render(mixed ...$data): string
     {
         self::_loadHelpers();
 
@@ -65,7 +65,7 @@ abstract class Dump
     /**
      * Gets information about one or more PHP variables and return it in plain text
      */
-    public static function printR($data, bool $showTypes = true, ?int $nestingLevel = null, string $format = 'json'): string
+    public static function printR(mixed $data, bool $showTypes = true, ?int $nestingLevel = null, string $format = 'json'): string
     {
         self::_loadHelpers();
 
@@ -118,12 +118,16 @@ abstract class Dump
 
         $output = [];
         foreach ($trace as $step) {
-            //Get data from the current step
-            foreach (['class', 'type', 'function', 'file', 'line', 'args', 'object'] as $param) {
-                $$param = $step[$param] ?? null;
-            }
+            // Get data from the current step
+            $class = $step['class'] ?? null;
+            $type = $step['type'] ?? null;
+            $function = $step['function'] ?? null;
+            $file = $step['file'] ?? null;
+            $line = $step['line'] ?? null;
+            $args = $step['args'] ?? null;
+            $object = $step['object'] ?? null;;
 
-            //Source code of the call to this step
+            // Source code of the call to this step
             if (!empty($file) && !empty($line)) {
                 self::_loadHelpers();
                 $source = DumpRender::getSource($step['file'], $step['line']);
@@ -131,7 +135,7 @@ abstract class Dump
                 $source = '';
             }
 
-            //Arguments
+            // Arguments
             $function_call = $class . $type . $function;
             $function_args = [];
             if (isset($args)) {
@@ -164,16 +168,16 @@ abstract class Dump
             }
             $info = [
                 'function' => $function_call,
-                'args'     => $function_args,
-                'file'     => isset($file) ? self::cleanPath($file) : null,
-                'line'     => $line,
-                'source'   => $source,
+                'args' => $function_args,
+                'file' => isset($file) ? self::cleanPath($file) : null,
+                'line' => $line,
+                'source' => $source,
             ];
 
             if (isset($object)) {
                 $info = [
-                            'object' => $object
-                        ] + $info;
+                        'object' => $object,
+                    ] + $info;
             }
 
             $output[] = $info;
@@ -185,7 +189,7 @@ abstract class Dump
     /**
      * Renders an abbreviated version of the backtrace
      *
-     * @param array $ call stack trace to be analyzed, if not use this parameter indicates the call stack before the function
+     * @param array call stack trace to be analyzed, if not use this parameter indicates the call stack before the function
      */
     public static function backtraceSmall(array $trace = null, bool $html = false, bool $rtl = false): string
     {
@@ -196,10 +200,12 @@ abstract class Dump
 
         $output = [];
         foreach ($trace as $step) {
-            //Get data from the current step
-            foreach (['class', 'type', 'function', 'file', 'line', 'args'] as $param) {
-                $$param = $step[$param] ?? '';
-            }
+            // Get data from the current step
+            $class = $step['class'] ?? null;
+            $type = $step['type'] ?? null;
+            $function = $step['function'] ?? null;
+            $file = $step['file'] ?? null;
+            $line = $step['line'] ?? null;
 
             //Generate HTML
             self::_loadHelpers();
@@ -221,7 +227,7 @@ abstract class Dump
     /**
      * Renders source code of an specified programming language
      */
-    public static function source(string $code, string $language = 'php', bool $editable = false, array $attrs = [], string $theme = 'default'): string
+    public static function source(string $code, string $language = 'php', bool|string $editable = false, array $attrs = [], string $theme = 'default'): string
     {
         self::_loadHelpers();
 
@@ -238,7 +244,7 @@ abstract class Dump
         }
         $extra .= DumpRender::htmlAttributes($attrs);
         return "<{$tag} class=\"dump-code\" data-language=\"{$language}\" data-theme=\"{$theme}\" {$extra}>{$code}</{$tag}>" .
-               DumpRender::assetsLoader('init_dump($(".dump-code"),{static_url:"' . self::$_staticURL . '"})', self::$_staticURL);
+            DumpRender::assetsLoader('init_dump($(".dump-code"),{static_url:"' . self::$_staticURL . '"})', self::$_staticURL);
     }
 
     /**
@@ -284,14 +290,14 @@ if (!function_exists('dump')) {
      * }
      * @endcode
      */
-    function dump(...$data): void
+    function dump(mixed ...$data): void
     {
         call_user_func_array(['Dump', 'show'], $data);
     }
 }
 
 if (!function_exists('dumpdie')) {
-    function dumpdie(...$data): never
+    function dumpdie(mixed ...$data): never
     {
         // Clean all output buffers
         while (ob_get_clean()) {

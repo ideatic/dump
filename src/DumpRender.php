@@ -25,7 +25,7 @@ class DumpRender
     /**
      * Gets information about one or more PHP variables and return it in HTML code.
      *
-     * @param mixed $name Name of the analyzed var, or dictionary with several vars and names
+     * @param string|array $name Name of the analyzed var, or dictionary with several vars and names
      */
     public function render(string|array $name, mixed $value = null): string
     {
@@ -37,7 +37,9 @@ class DumpRender
         }
 
         $show_caller = $this->showCaller;
+
         // Render data
+        $action = '';
         if (count($data) == 1 && (($e = reset($data)) instanceof Exception || ($e = reset($data)) instanceof Throwable)) {
             $this->_recursionObjects = [];
             $inner = [$this->_renderException('', $e)];
@@ -124,19 +126,19 @@ class DumpRender
                     $html = $this->htmlElement(
                         'a',
                         ['href' => $data, 'target' => '_blank'],
-                        htmlspecialchars($data)
+                        htmlspecialchars($data),
                     );
                 } elseif (preg_match('#^([a-zA-Z0-9_\-\.]+)@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.)|(([a-zA-Z0-9\-]+\.)+))([a-zA-Z]{2,4}|[0-9]{1,3})$#', $data)) {// Email
                     $html = $this->htmlElement(
                         'a',
                         ['href' => "mailto:$data", 'target' => '_blank'],
-                        htmlspecialchars($data)
+                        htmlspecialchars($data),
                     );
                 } elseif (str_contains($data, '<') || strlen($data) > 15) {// Only expand if is a long text or HTML code
                     $html = $this->htmlElement(
                         'div',
                         ['class' => 'dump-string'],
-                        htmlspecialchars(str_replace(['{', '}'], ['&#123;', '&#125;'], $data))// Proteger plantillas Angular y Twig
+                        htmlspecialchars(str_replace(['{', '}'], ['&#123;', '&#125;'], $data)),// Proteger plantillas Angular y Twig
                     );
                 }
             }
@@ -148,7 +150,7 @@ class DumpRender
                 $level,
                 $metadata,
                 strlen($data) . ' characters',
-                $html
+                $html,
             );
         } elseif (is_float($data)) {
             $render = $this->_renderItem($name, 'Float', $data, $level, $metadata);
@@ -172,8 +174,8 @@ class DumpRender
         int $level,
         ?string $metadata = null,
         string $extraInfo = '',
-        $children = null,
-        $class = null
+        mixed $children = null,
+        string $class = null,
     ): string {
         // Variable info
         $info = '';
@@ -211,7 +213,7 @@ class DumpRender
                     empty($info) || !$this->showExtraInfo ? '' : " ({$info})",
                     ' ',
                     ['span', ['class' => 'dump-value'], htmlspecialchars((string)$value)],
-                ]
+                ],
             );
 
             if (!empty($children)) {
@@ -319,8 +321,8 @@ class DumpRender
 
         // Source code
         if ($this->format == 'html') {
-            $backtrace = Dump::backtrace($e->getTrace());
-            foreach ($backtrace as $step) {
+            $trace = Dump::backtrace($e->getTrace());
+            foreach ($trace as $step) {
                 if ($step['file'] == $path && $step['line'] == $e->getLine()) {
                     $source = $step['source'];
                     break;
@@ -335,7 +337,7 @@ class DumpRender
         } else {
             $children[] = $this->_renderItem('Location', '', $path . ':' . $e->getLine(), $level + 1);
 
-            $backtrace = Dump::backtraceSmall($e->getTrace(), false);
+            $trace = Dump::backtraceSmall($e->getTrace(), false);
         }
 
         // Context and data
@@ -369,18 +371,18 @@ class DumpRender
         }
 
         // Backtrace (en modo texto)
-        if (!is_array($backtrace)) {
-            $children[] = $this->_renderItem('Backtrace', '', $backtrace, $level + 1);
+        if (!is_array($trace)) {
+            $children[] = $this->_renderItem('Trace', '', $trace, $level + 1);
         }
 
         // Fields
         // $children[] = $this->_render_object('Fields', $e, $level + 1, '', ['message', 'trace']);
 
         // Backtrace
-        if (is_array($backtrace)) {
-            $backtraceChildren = [];
+        if (is_array($trace)) {
+            $traceChildren = [];
 
-            foreach ($backtrace as $stepIndex => $step) {
+            foreach ($trace as $stepIndex => $step) {
                 $stepChildren = [];
                 foreach ($step as $k => $v) {
                     if ($k == 'source' && is_string($v) && !empty($v)) {
@@ -392,10 +394,10 @@ class DumpRender
 
 
                 $info = (isset($step['args']) ? count($step['args']) : 0) . ' parameters';
-                $backtraceChildren[] = $this->_renderItem((string)$stepIndex, $step['function'], '', $level, '', $info, $stepChildren);
+                $traceChildren[] = $this->_renderItem((string)$stepIndex, $step['function'], '', $level, '', $info, $stepChildren);
             }
 
-            $children[] = $this->_renderItem('Backtrace', count($backtrace) . ' steps', '', $level, '', '', $backtraceChildren);
+            $children[] = $this->_renderItem('Trace', count($trace) . ' steps', '', $level, '', '', $traceChildren);
         }
 
         if ($level == 0) {
@@ -449,7 +451,7 @@ class DumpRender
         return $this->_renderItem($name, 'Array', '', $level, $metadata, $this->countElements ? (count($data) . ' items') : '', $children);
     }
 
-    private function _renderObject(string $name, $data, int $level = 0, ?string $metadata = null, array $ignoredProperties = []): string
+    private function _renderObject(string $name, object $data, int $level = 0, ?string $metadata = null, array $ignoredProperties = []): string
     {
         $recursive = $level > 4 && in_array($data, $this->_recursionObjects, true);
 
@@ -548,7 +550,7 @@ class DumpRender
         return $this->_renderItem($name, 'Object', get_class($data), $level, $metadata, "{$propertiesCount} fields", $children);
     }
 
-    private function _getPrivateData($object, $default = null)
+    private function _getPrivateData(object $object, array $default = null): array|null
     {
         for ($method = 0; $method < 2; $method++) {
             try {
@@ -568,7 +570,7 @@ class DumpRender
                         $serialized_array = str_replace(
                             "O:{$class_name_len}:\"{$class_name}\":{$prop_count}:",
                             "a:{$prop_count}:",
-                            $serialized
+                            $serialized,
                         );
 
                         if ($serialized != $serialized_array) {
@@ -613,7 +615,7 @@ class DumpRender
             return (int)$val;
         }
 
-        $val = substr($val, 0, -1);
+        $val = intval(substr($val, 0, -1));
         switch ($last) {
             // The 'G' modifier is available since PHP 5.1.0
             case 'g':
@@ -637,7 +639,7 @@ class DumpRender
             $level,
             '',
             '',
-            $this->htmlElement('div', ['class' => 'dump-source'], $editLink . $value)
+            $this->htmlElement('div', ['class' => 'dump-source'], $editLink . $value),
         );
     }
 
@@ -671,7 +673,7 @@ class DumpRender
         fclose($file);
 
         return '<pre class="dump-code" data-language="php" data-from="' . $start . '" data-highlight="' . $lineNumber .
-               '" data-theme="graynight">' . implode('', $source) . '</pre>';
+            '" data-theme="graynight">' . implode('', $source) . '</pre>';
     }
 
 
@@ -715,7 +717,7 @@ class DumpRender
         return ob_get_clean();
     }
 
-    public static function htmlAttributes($attributes = ''): string
+    public static function htmlAttributes(string|array $attributes = ''): string
     {
         if (is_array($attributes)) {
             $atts = '';
@@ -740,7 +742,7 @@ class DumpRender
         return $attributes;
     }
 
-    public static function htmlElement(string $tagName, $attributes, $content = null): string
+    public static function htmlElement(string $tagName, array|string $attributes, array|string $content = null): string
     {
         // Check input data
         if (!isset($content)) {
@@ -760,7 +762,7 @@ class DumpRender
                     $contentHTML[] = self::htmlElement(
                         $childElement[0],
                         $childElement[1],
-                        count($childElement) > 2 ? $childElement[2] : null
+                        count($childElement) > 2 ? $childElement[2] : null,
                     );
                 } else {
                     if (!empty($childElement)) {
