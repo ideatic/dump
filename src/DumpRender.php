@@ -492,26 +492,32 @@ class DumpRender
 
                             // Build field
                             $value = null;
-                            try {
-                                $propertyName = $property->name;
-                                if ($property->isPublic() && isset($data->$propertyName)) {
-                                    $value = $property->getValue($data);
-                                } elseif (isset($data->$propertyName)) {
-                                    $property->setAccessible(true);
-                                    $value = $property->getValue($data);
-                                } else {
-                                    if (!isset($privateData)) { // Initialize object private data
-                                        $privateData = $this->_getPrivateData($data, []);
-                                    }
 
-                                    if (array_key_exists($property->name, $privateData)) {
-                                        $value = $privateData[$property->name];
+                            if (count($property->getAttributes(SensitiveParameter::class)) > 0
+                                || count($property->getAttributes('Sensitive')) > 0) {
+                                $value = '##Sensitive##';
+                            } else {
+                                try {
+                                    $propertyName = $property->name;
+                                    if ($property->isPublic() && isset($data->$propertyName)) {
+                                        $value = $property->getValue($data);
+                                    } elseif (isset($data->$propertyName)) {
+                                        $property->setAccessible(true);
+                                        $value = $property->getValue($data);
                                     } else {
-                                        $value = '?';
+                                        if (!isset($privateData)) { // Initialize object private data
+                                            $privateData = $this->_getPrivateData($data, []);
+                                        }
+
+                                        if (array_key_exists($property->name, $privateData)) {
+                                            $value = $privateData[$property->name];
+                                        } else {
+                                            $value = '?';
+                                        }
                                     }
+                                } catch (Throwable $err) {
+                                    $value = '##ERROR##';
                                 }
-                            } catch (Throwable $err) {
-                                $value = '##ERROR##';
                             }
 
                             $children[] = $this->_render($property->name, $value, $level + 1, implode(', ', $meta));
@@ -579,8 +585,7 @@ class DumpRender
                     foreach ($rawData as $key => $value) {
                         $pos = strrpos($key, "\0");
 
-                        if ($pos !== false) // Remove special names given by php ( "\0*\0" for protected fields, "\0$class_name\0" for private)
-                        {
+                        if ($pos !== false) { // Remove special names given by php ( "\0*\0" for protected fields, "\0$class_name\0" for private)
                             $key = substr($key, $pos + 1);
                         }
 
