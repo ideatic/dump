@@ -175,7 +175,7 @@ class DumpRender
         ?string $metadata = null,
         string $extraInfo = '',
         mixed $children = null,
-        string $class = null,
+        ?string $class = null,
     ): string {
         // Variable info
         $info = '';
@@ -357,12 +357,11 @@ class DumpRender
             $children[] = $this->_render('Code', $code, $level + 1);
         }
 
-        if (method_exists($e, 'getPrevious')) {
-            $data = $e->getPrevious();
-            if ($data !== null) {
-                $children[] = $this->_render('Previous', $data, $level + 1);
-            }
+        $data = $e->getPrevious();
+        if ($data !== null) {
+            $children[] = $this->_render('Previous', $data, $level + 1);
         }
+
         if (method_exists($e, 'getUserMessage')) {
             $data = $e->getUserMessage();
             if ($data) {
@@ -497,7 +496,7 @@ class DumpRender
                                 $propertyName = $property->name;
                                 if ($property->isPublic() && isset($data->$propertyName)) {
                                     $value = $property->getValue($data);
-                                } elseif (method_exists($property, 'setAccessible') && isset($data->$propertyName)) {
+                                } elseif (isset($data->$propertyName)) {
                                     $property->setAccessible(true);
                                     $value = $property->getValue($data);
                                 } else {
@@ -527,10 +526,6 @@ class DumpRender
                 $properties = get_object_vars($data);
             }
 
-            if (!is_array($properties)) {
-                $properties = [];
-            }
-
             // Add properties as child of the current node
             foreach ($properties as $key => $value) {
                 if (in_array($key, $ignoredProperties)) {
@@ -550,7 +545,7 @@ class DumpRender
         return $this->_renderItem($name, 'Object', get_class($data), $level, $metadata, "{$propertiesCount} fields", $children);
     }
 
-    private function _getPrivateData(object $object, array $default = null): array|null
+    private function _getPrivateData(object $object, ?array $default = null): array|null
     {
         for ($method = 0; $method < 2; $method++) {
             try {
@@ -563,7 +558,7 @@ class DumpRender
                     $class_name = get_class($object);
                     $serialized = serialize($object);
 
-                    if (preg_match('/' . preg_quote($class_name) . '.\:(\d+)/', $serialized, $match)) {
+                    if (preg_match('/' . preg_quote($class_name, '/') . '.\:(\d+)/', $serialized, $match)) {
                         $prop_count = $match[1];
                         $class_name_len = strlen($class_name);
 
@@ -629,7 +624,7 @@ class DumpRender
         return $val;
     }
 
-    private function _renderSourceCode(string $name, string $value, int $level, string $file = null, int $line = null): string
+    private function _renderSourceCode(string $name, string $value, int $level, ?string $file = null, ?int $line = null): string
     {
         $editLink = '';
         return $this->_renderItem(
@@ -742,7 +737,7 @@ class DumpRender
         return $attributes;
     }
 
-    public static function htmlElement(string $tagName, array|string $attributes, array|string $content = null): string
+    public static function htmlElement(string $tagName, array|string $attributes, array|string|null $content = null): string
     {
         // Check input data
         if (!isset($content)) {

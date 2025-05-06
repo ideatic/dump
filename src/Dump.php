@@ -105,11 +105,11 @@ abstract class Dump
      * 'line': line of the file where the call occurs
      * 'source': source code where the call comes (in HTML format)
      *
-     * @param array $trace Trace to be analyzed, if not use this parameter indicates the call stack before the function
+     * @param array|null $trace Trace to be analyzed, if not use this parameter indicates the call stack before the function
      *
      * @throws ReflectionException
      */
-    public static function backtrace(array $trace = null): array
+    public static function backtrace(?array $trace = null): array
     {
         $trace ??= debug_backtrace();
 
@@ -189,9 +189,9 @@ abstract class Dump
     /**
      * Renders an abbreviated version of the backtrace
      *
-     * @param array call stack trace to be analyzed, if not use this parameter indicates the call stack before the function
+     * @param array $trace call stack trace to be analyzed, if not use this parameter indicates the call stack before the function
      */
-    public static function backtraceSmall(array $trace = null, bool $html = false, bool $rtl = false): string
+    public static function backtraceSmall(?array $trace = null, bool $html = false, bool $rtl = false): string
     {
         if (!$trace) {
             $trace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS);
