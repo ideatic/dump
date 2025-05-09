@@ -10,6 +10,7 @@ class DumpRender
     public bool $showCaller = true;
     public bool $showTypes = true;
     public bool $showExtraInfo = true;
+    /** @var 'html'|'json'|string */
     public string $format = 'html';
 
     public bool $countElements = true;
@@ -36,7 +37,7 @@ class DumpRender
             $data = [$name => $value];
         }
 
-        $show_caller = $this->showCaller;
+        $showCaller = $this->showCaller;
 
         // Render data
         $action = '';
@@ -45,7 +46,7 @@ class DumpRender
             $inner = [$this->_renderException('', $e)];
 
             // Caller info
-            $show_caller = true;
+            $showCaller = $this->format == 'html';
             $action = 'Thrown';
             $step['file'] = Dump::cleanPath($e->getFile());
             $step['line'] = $e->getLine();
@@ -60,7 +61,7 @@ class DumpRender
             }
 
             // Caller info
-            if ($show_caller) {
+            if ($showCaller) {
                 $action = 'Called';
                 $trace = debug_backtrace();
                 while ($step = array_pop($trace)) {
@@ -88,7 +89,7 @@ class DumpRender
             $result[] = '</li></ul>';
 
             // Footer
-            if (isset($step) && $show_caller) {
+            if (isset($step) && $showCaller) {
                 $result[] = $this->htmlElement('div', ['class' => 'dump-footer'], "{$action} from {$step['file']}, line {$step['line']}");
             }
 
@@ -98,11 +99,12 @@ class DumpRender
             $result = $inner;
 
             // Footer
-            if (isset($step) && $show_caller) {
+            if (isset($step) && $showCaller) {
                 $result[] = "\n{$action} from {$step['file']}, line {$step['line']}";
             }
         }
-        return implode('', $result);
+
+        return trim(implode('', $result));
     }
 
     private function _render(string $name, mixed $data, int $level = 0, ?string $metadata = null): string
