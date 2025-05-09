@@ -469,7 +469,7 @@ class DumpRender
                 if (!($data instanceof stdClass) && class_exists('ReflectionClass', false)) {
                     $current = new ReflectionClass($data);
                     $privateData = null;
-                    while ($current !== false) {
+                    while ($current) {
                         foreach ($current->getProperties() as $property) {
                             if (in_array($property->name, $ignoredProperties)) {
                                 continue;
@@ -529,7 +529,11 @@ class DumpRender
                 }
 
                 // Find runtime properties
-                $properties = get_object_vars($data);
+                try {
+                    $properties = get_object_vars($data);
+                } catch (Throwable $err) {
+                    $properties = ['## ERROR with get_object_vars##' => $err];
+                }
             }
 
             // Add properties as child of the current node
