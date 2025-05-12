@@ -254,9 +254,9 @@ class DumpRender
                         $typeInfo = false;
                     }
                 } elseif ($type == 'Object') {
-                    $typeInfo = preg_replace('/^Object\,?\s*/i', $value . ', ', $typeInfo);
+                    $typeInfo = preg_replace('/\bObject\,?\s*/i', "{$value}, ", $typeInfo);
                 } elseif ($type == 'Array') {
-                    $typeInfo = preg_replace('/^Array\,?\s*/i', '', $typeInfo);// Ya se diferencian arrays de objetos
+                    $typeInfo = preg_replace('/\bArray\,?\s*/i', '', $typeInfo);// Ya se diferencian arrays de objetos
                 } else {
                     $result[] = $value . ' ';
                 }

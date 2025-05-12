@@ -10,6 +10,9 @@
       "homepage": "http://www.ideatic.net/"
     }
   ],
+  "require": {
+    "ext-ctype": "*"
+  },
   "autoload": {
     "classmap": [
       "src/"
