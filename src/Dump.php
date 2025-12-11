@@ -225,7 +225,7 @@ abstract class Dump
     }
 
     /**
-     * Renders source code of an specified programming language
+     * Renders source code of a specified programming language
      */
     public static function source(string $code, string $language = 'php', bool|string $editable = false, array $attrs = [], string $theme = 'default'): string
     {

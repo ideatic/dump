@@ -126,33 +126,33 @@ class DumpRender
                 if (preg_match('#^(\w+):\/\/([\w@][\w.:@]+)\/?[\w\.?=%&=\-@/$,]*$#', $data)) // URL
                 {
                     $html = $this->htmlElement(
-                        'a',
-                        ['href' => $data, 'target' => '_blank'],
-                        htmlspecialchars($data),
+                            'a',
+                            ['href' => $data, 'target' => '_blank'],
+                            htmlspecialchars($data),
                     );
                 } elseif (preg_match('#^([a-zA-Z0-9_\-\.]+)@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.)|(([a-zA-Z0-9\-]+\.)+))([a-zA-Z]{2,4}|[0-9]{1,3})$#', $data)) {// Email
                     $html = $this->htmlElement(
-                        'a',
-                        ['href' => "mailto:$data", 'target' => '_blank'],
-                        htmlspecialchars($data),
+                            'a',
+                            ['href' => "mailto:$data", 'target' => '_blank'],
+                            htmlspecialchars($data),
                     );
                 } elseif (str_contains($data, '<') || strlen($data) > 15) {// Only expand if is a long text or HTML code
                     $html = $this->htmlElement(
-                        'div',
-                        ['class' => 'dump-string'],
-                        htmlspecialchars(str_replace(['{', '}'], ['&#123;', '&#125;'], $data)),// Proteger plantillas Angular y Twig
+                            'div',
+                            ['class' => 'dump-string'],
+                            htmlspecialchars(str_replace(['{', '}'], ['&#123;', '&#125;'], $data)),// Proteger plantillas Angular y Twig
                     );
                 }
             }
 
             $render = $this->_renderItem(
-                $name,
-                'String',
-                strlen($data) > 100 && $this->format == 'html' ? substr($data, 0, 100) . '...' : $data,
-                $level,
-                $metadata,
-                strlen($data) . ' characters',
-                $html,
+                    $name,
+                    'String',
+                    strlen($data) > 100 && $this->format == 'html' ? substr($data, 0, 100) . '...' : $data,
+                    $level,
+                    $metadata,
+                    strlen($data) . ' characters',
+                    $html,
             );
         } elseif (is_float($data)) {
             $render = $this->_renderItem($name, 'Float', $data, $level, $metadata);
@@ -170,14 +170,14 @@ class DumpRender
     }
 
     private function _renderItem(
-        string $name,
-        string $type,
-        mixed $value,
-        int $level,
-        ?string $metadata = null,
-        string $extraInfo = '',
-        mixed $children = null,
-        ?string $class = null,
+            string $name,
+            string $type,
+            mixed $value,
+            int $level,
+            ?string $metadata = null,
+            string $extraInfo = '',
+            mixed $children = null,
+            ?string $class = null,
     ): string {
         // Variable info
         $info = '';
@@ -208,14 +208,14 @@ class DumpRender
             }
 
             $result[] = $this->htmlElement(
-                'div',
-                ['class' => ['dump-header', $class, empty($children) ? '' : ' dump-collapsed']],
-                [
-                    ['span', ['class' => 'dump-name'], htmlspecialchars($name)],
-                    empty($info) || !$this->showExtraInfo ? '' : " ({$info})",
-                    ' ',
-                    ['span', ['class' => 'dump-value'], htmlspecialchars((string)$value)],
-                ],
+                    'div',
+                    ['class' => ['dump-header', $class, empty($children) ? '' : ' dump-collapsed']],
+                    [
+                            ['span', ['class' => 'dump-name'], htmlspecialchars($name)],
+                            empty($info) || !$this->showExtraInfo ? '' : " ({$info})",
+                            ' ',
+                            ['span', ['class' => 'dump-value'], htmlspecialchars((string)$value)],
+                    ],
             );
 
             if (!empty($children)) {
@@ -309,13 +309,13 @@ class DumpRender
         return implode('', $result);
     }
 
-    private function _renderException(string $name, Throwable $e, int $level = 0): string
+    private function _renderException(string $name, Throwable $exception, int $level = 0): string
     {
         $children = [];
 
         // Basic info about the exception
-        $path = Dump::cleanPath($e->getFile());
-        $message = Dump::cleanPath($e->getMessage());
+        $path = Dump::cleanPath($exception->getFile());
+        $message = Dump::cleanPath($exception->getMessage());
 
         if ($this->format == 'html') {
             $children[] = $this->htmlElement('div', ['class' => 'dump-exception'], htmlspecialchars($message));
@@ -323,49 +323,59 @@ class DumpRender
 
         // Source code
         if ($this->format == 'html') {
-            $trace = Dump::backtrace($e->getTrace());
+            $trace = Dump::backtrace($exception->getTrace());
             foreach ($trace as $step) {
-                if ($step['file'] == $path && $step['line'] == $e->getLine()) {
+                if ($step['file'] == $path && $step['line'] == $exception->getLine()) {
                     $source = $step['source'];
                     break;
                 }
             }
             if (!isset($source)) {
-                $source = self::getSource($e->getFile(), $e->getLine());
+                $source = self::getSource($exception->getFile(), $exception->getLine());
             }
             if (!empty($source)) {
-                $children[] = $this->_renderSourceCode('Source', $source, $e->getLine(), $path);
+                $children[] = $this->_renderSourceCode('Source', $source, $exception->getLine(), $path);
             }
         } else {
-            $children[] = $this->_renderItem('Location', '', $path . ':' . $e->getLine(), $level + 1);
+            $children[] = $this->_renderItem('Location', '', $path . ':' . $exception->getLine(), $level + 1);
 
-            $trace = Dump::backtraceSmall($e->getTrace(), false);
+            $trace = Dump::backtraceSmall($exception->getTrace(), false);
         }
 
         // Context and data
-        if (method_exists($e, 'getContext')) {
-            $context = $e->getContext();
+        if (property_exists($exception, 'context')) {
+            $context = $exception->context;
             $children[] = $this->_render('Context', $context, $level + 1);
         }
-        if (method_exists($e, 'getData')) {
-            $data = $e->getData();
+        if (method_exists($exception, 'getContext')) {
+            $context = $exception->getContext();
+            $children[] = $this->_render('Context', $context, $level + 1);
+        }
+        if (property_exists($exception, 'data')) {
+            $data = $exception->data;
+            if ($data !== null) {
+                $children[] = $this->_render('Data', $data, $level + 1);
+            }
+        }
+        if (method_exists($exception, 'getData')) {
+            $data = $exception->getData();
             if ($data !== null) {
                 $children[] = $this->_render('Data', $data, $level + 1);
             }
         }
 
-        $code = $e->getCode();
+        $code = $exception->getCode();
         if ($code) {
             $children[] = $this->_render('Code', $code, $level + 1);
         }
 
-        $data = $e->getPrevious();
+        $data = $exception->getPrevious();
         if ($data !== null) {
             $children[] = $this->_render('Previous', $data, $level + 1);
         }
 
-        if (method_exists($e, 'getUserMessage')) {
-            $data = $e->getUserMessage();
+        if (method_exists($exception, 'getUserMessage')) {
+            $data = $exception->getUserMessage();
             if ($data) {
                 $children[] = $this->_render('UserMessage', $data, $level + 1);
             }
@@ -402,9 +412,9 @@ class DumpRender
         }
 
         if ($level == 0) {
-            return $this->_renderItem(get_class($e), '', strip_tags($message), $level, '', '', $children, 'exception');
+            return $this->_renderItem(get_class($exception), '', strip_tags($message), $level, '', '', $children, 'exception');
         } else {
-            return $this->_renderItem($name, get_class($e), strip_tags($message), $level, '', '', $children, 'exception');
+            return $this->_renderItem($name, get_class($exception), strip_tags($message), $level, '', '', $children, 'exception');
         }
     }
 
@@ -496,7 +506,7 @@ class DumpRender
                             $value = null;
 
                             if (count($property->getAttributes(SensitiveParameter::class)) > 0
-                                || count($property->getAttributes('Sensitive')) > 0) {
+                                    || count($property->getAttributes('Sensitive')) > 0) {
                                 $value = '##Sensitive##';
                             } else {
                                 try {
@@ -575,9 +585,9 @@ class DumpRender
                         $class_name_len = strlen($class_name);
 
                         $serialized_array = str_replace(
-                            "O:{$class_name_len}:\"{$class_name}\":{$prop_count}:",
-                            "a:{$prop_count}:",
-                            $serialized,
+                                "O:{$class_name_len}:\"{$class_name}\":{$prop_count}:",
+                                "a:{$prop_count}:",
+                                $serialized,
                         );
 
                         if ($serialized != $serialized_array) {
@@ -639,13 +649,13 @@ class DumpRender
     {
         $editLink = '';
         return $this->_renderItem(
-            $name,
-            '',
-            "{$file}:{$line}",
-            $level,
-            '',
-            '',
-            $this->htmlElement('div', ['class' => 'dump-source'], $editLink . $value),
+                $name,
+                '',
+                "{$file}:{$line}",
+                $level,
+                '',
+                '',
+                $this->htmlElement('div', ['class' => 'dump-source'], $editLink . $value),
         );
     }
 
@@ -679,7 +689,7 @@ class DumpRender
         fclose($file);
 
         return '<pre class="dump-code" data-language="php" data-from="' . $start . '" data-highlight="' . $lineNumber .
-            '" data-theme="graynight">' . implode('', $source) . '</pre>';
+                '" data-theme="graynight">' . implode('', $source) . '</pre>';
     }
 
 
@@ -766,9 +776,9 @@ class DumpRender
             foreach ($content as $childElement) {
                 if (is_array($childElement)) {
                     $contentHTML[] = self::htmlElement(
-                        $childElement[0],
-                        $childElement[1],
-                        count($childElement) > 2 ? $childElement[2] : null,
+                            $childElement[0],
+                            $childElement[1],
+                            count($childElement) > 2 ? $childElement[2] : null,
                     );
                 } else {
                     if (!empty($childElement)) {
