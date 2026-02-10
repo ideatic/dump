@@ -514,7 +514,6 @@ class DumpRender
                                     if ($property->isPublic() && isset($data->$propertyName)) {
                                         $value = $property->getValue($data);
                                     } elseif (isset($data->$propertyName)) {
-                                        $property->setAccessible(true);
                                         $value = $property->getValue($data);
                                     } else {
                                         if (!isset($privateData)) { // Initialize object private data
